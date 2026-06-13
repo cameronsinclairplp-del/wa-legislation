@@ -1,0 +1,374 @@
+'use strict';
+/* WA Legislation — production engine. Reuses the proven byte-faithful corpus
+   (app/data, build-asserted verbatim). Renders the D2 vivid-tile design.
+   Routing · lazy per-Act load · offline full-text · PWA. Statute h is injected
+   unchanged; defined-term marks + xrefs are non-destructive wrappers. */
+(function(){
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const escRe=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const NS='wal-';
+const ls={get(k,d){try{const v=localStorage.getItem(NS+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+          set(k,v){try{localStorage.setItem(NS+k,JSON.stringify(v))}catch(e){}}};
+const DATA='./data/';
+
+let REG, SRC={}, PAL10=[], SEARCH=[], DEFS=[], TOPICS={doms:[],topics:[]}, STUDY=null, FTEXT=null;
+const actCache={};
+let curAct=null, curSec=null, sbMode=ls.get('sbMode','acts'), sbKey='', loadingFT=false;
+
+/* ---------- icons ---------- */
+const SVG={
+ home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/>',
+ browse:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+ search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+ study:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+ saved:'<path d="M12 21s-7-4.4-9.5-8.5C.9 9.6 2.3 5.8 5.5 5.2 8 4.7 10.3 6.2 12 8.6c1.7-2.4 4-3.9 6.5-3.4 3.2.6 4.6 4.4 3 7.3C19 16.6 12 21 12 21Z"/>',
+ activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>',
+ alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h16.9a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+ droplet:'<path d="M12 2.7s5.5 5.6 5.5 9.8a5.5 5.5 0 1 1-11 0C6.5 8.3 12 2.7 12 2.7Z"/>',
+ box:'<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5"/><path d="M12 12v9"/>',
+ mask:'<path d="M4 5h16v7a8 8 0 0 1-16 0Z"/><path d="M9 11h.01"/><path d="M15 11h.01"/><path d="M9 15c1 1 5 1 6 0"/>',
+ key:'<circle cx="8" cy="15" r="4"/><path d="m11 12 8-8"/><path d="m17 5 2 2"/><path d="m14 8 2 2"/>',
+ link:'<path d="M9 12h6"/><path d="M10 8H7a4 4 0 0 0 0 8h3"/><path d="M14 8h3a4 4 0 0 1 0 8h-3"/>',
+ scale:'<path d="M12 4v16"/><path d="M7 8h10"/><path d="m7 8-3 6a3 3 0 0 0 6 0Z"/><path d="m17 8-3 6a3 3 0 0 0 6 0Z"/><path d="M6 20h12"/>',
+ car:'<path d="M5 13 6.6 8h10.8L19 13"/><path d="M4 17v-3.5L5 13h14l1 .5V17h-2"/><path d="M8 17H4"/><circle cx="7.5" cy="17" r="1.6"/><circle cx="16.5" cy="17" r="1.6"/>',
+ file:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/>',
+ users:'<circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 6a3 3 0 0 1 0 6"/><path d="M19.5 20a5.5 5.5 0 0 0-3-5"/>',
+ book:'<path d="M5 4h13a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6.5A1.5 1.5 0 0 1 5 19.5Z"/><path d="M5 17.5h14"/>',
+ play:'<path d="M8 5v14l11-7Z"/>',chev:'<path d="m9 6 6 6-6 6"/>',back:'<path d="m15 6-6 6 6 6"/>',
+ heart:'<path d="M12 21s-7-4.4-9.5-8.5C.9 9.6 2.3 5.8 5.5 5.2 8 4.7 10.3 6.2 12 8.6c1.7-2.4 4-3.9 6.5-3.4 3.2.6 4.6 4.4 3 7.3C19 16.6 12 21 12 21Z"/>',
+ copy:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/>'};
+function ic(n,stroke='#fff'){return `<svg viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${SVG[n]||SVG.box}</svg>`}
+const TOPIC_ICON={};
+function iconFor(name){const n=(name||'').toLowerCase();const map=[['homicid|murder|manslaughter|kill','activity'],['assault|gbh|grievous|bodily harm|wound|strangulat','shield'],['sexual|indecent|rape|pornograph','mask'],['drug|cannabis|methyl|traffick','droplet'],['steal|theft|property|receiv','box'],['burglar|invasion|trespass','home'],['robber','alert'],['fraud|forgery|dishonest|deception|bribery|corrupt','file'],['search|warrant|seiz|powers','search'],['arrest|custody|detain','link'],['bail','scale'],['sentenc|penalt|confiscat','scale'],['evidence|disclosure|court','book'],['traffic|driv|vehicle|road','car'],['weapon|firearm','shield'],['child|young|famil|juvenile|infant','users'],['threat|blackmail|stalk|intimidat|harass','alert'],['kidnap|libert|deprivation|abduct|detention','link'],['restrain|violence','shield'],['public order|riot|affray|disorder|justice','alert'],['surveillance|covert|intercept','key'],['damage|arson','alert']];for(const[re,k] of map){if(new RegExp(re).test(n))return k}return 'box'}
+function topicIcon(t){return TOPIC_ICON[t.id]||iconFor(t.name)}
+
+/* ---------- data ---------- */
+async function jget(f){const r=await fetch(DATA+f);if(!r.ok)throw new Error('Could not load '+f);return r.json()}
+async function loadAct(id){if(actCache[id])return actCache[id];const d=await jget(id+'.json');d._byId={};d.sections.forEach(s=>d._byId[s.id]=s);actCache[id]=d;return d}
+const hue=a=>(SRC[a]||{}).hue||'#94a3b8';
+const ink=a=>(SRC[a]||{}).ink||'#475569';
+const tsh=a=>`color-mix(in srgb, ${hue(a)} 55%, transparent)`;
+const tileBg=hex=>`linear-gradient(157deg, color-mix(in srgb,${hex} 92%,#fff), color-mix(in srgb,${hex} 86%,#000))`;
+const ud=s=>((s.u||s.unit)==='s'?'s ':'')+(s.num!=null?s.num:s.n);
+const acts=()=>REG.sources.filter(s=>s.cat==='act');
+const defsOf=a=>DEFS.filter(d=>d.a===a);
+
+/* ---------- boot ---------- */
+async function boot(){
+  document.documentElement.dataset.theme = ls.get('theme', matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  try{
+    REG=await jget('registry.json');
+    REG.sources.forEach(s=>SRC[s.id]=s);
+    PAL10=['blue','teal','orange','purple','indigo','pink','gold','cyan','emerald','brown'].map(f=>REG.palette[f]);
+    const [sj,dj,tj]=await Promise.all([jget('search.json'),jget('defs.json'),jget('topics.json')]);
+    SEARCH=sj; TOPICS=tj; DEFS=dj.acts.flatMap(a=>a.terms.map(t=>({t:t.t,a:a.a,s:t.s,num:t.num,sc:t.sc,d:t.d})));
+    paintChrome();
+    addEventListener('hashchange',route);
+    if(!location.hash) location.hash='#/home';
+    route();
+    prefetchIdle();
+  }catch(e){ $('#main').innerHTML=`<div class="boot">Couldn’t load the statute library.<br><small>${esc(e.message)}</small></div>`; console.error(e); }
+}
+function prefetchIdle(){
+  const idle=window.requestIdleCallback||(f=>setTimeout(f,80));
+  const ids=REG.sources.map(s=>s.id);let i=0;
+  const step=()=>{ if(i>=ids.length)return; const id=ids[i++]; (actCache[id]?Promise.resolve():loadAct(id).catch(()=>{})).then(()=>idle(step)); };
+  idle(step);
+}
+
+/* ---------- chrome ---------- */
+function paintChrome(){
+  $$('.dock .ic').forEach(e=>e.innerHTML=ic(e.dataset.i,'currentColor'));
+  $$('[data-route]').forEach(el=>el.addEventListener('click',ev=>{ev.preventDefault();navigate(el.dataset.route)}));
+  $$('.sb-switch button').forEach(b=>b.addEventListener('click',()=>sbSwitch(b.dataset.mode)));
+  $('#menuBtn').onclick=menuTap; $('#sbScrim').onclick=closeDrawer;
+  $('#searchBtn').onclick=()=>navigate('/search'); $('#sizeBtn').onclick=cycleSize; $('#themeBtn').onclick=toggleTheme;
+  applySize();
+  addEventListener('keydown',e=>{
+    if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();navigate('/search')}
+    else if(e.key==='Escape'){$('#pop').classList.remove('on');closeDrawer()}
+  });
+  document.addEventListener('click',e=>{if(!e.target.closest('dfn')&&!e.target.closest('#pop'))$('#pop').classList.remove('on')});
+  renderSidebar();
+}
+function navigate(h){ if(location.hash==='#'+h){route();} else location.hash='#'+h; }
+const ROUTE_TAB={home:'/home',browse:'/browse',topics:'/browse',a:'/browse',s:null,topic:'/browse',search:'/search',study:'/study',saved:'/saved',defs:'/browse',drugs:'/study',recents:'/home'};
+function route(){
+  const h=(location.hash||'#/home').slice(1);
+  const p=h.split('/').filter(Boolean);
+  $('#pop').classList.remove('on'); closeDrawer();
+  const seg=p[0]||'home';
+  $$('.di').forEach(d=>d.classList.toggle('on',d.dataset.route===ROUTE_TAB[seg]));
+  const m=$('#main'); m.scrollTop=0; window.scrollTo(0,0);
+  if(seg==='s')      return openSec(p[1],p[2]);
+  if(seg==='a')      return renderActPage(p[1]);
+  if(seg==='topic')  return renderTopicPage(p[1]);
+  if(seg==='topics') return renderBrowse('topics');
+  if(seg==='browse') return renderBrowse('acts');
+  if(seg==='search') return renderSearch(decodeURIComponent(p.slice(1).join('/')||''));
+  if(seg==='study')  return renderStudy();
+  if(seg==='saved')  return renderSaved();
+  if(seg==='defs')   return renderDefs();
+  if(seg==='drugs')  return renderDrugMatrix();
+  if(seg==='recents')return renderRecents();
+  renderHome();
+}
+
+/* ---------- HOME ---------- */
+function renderHome(){
+  const legend=PAL10.map(h=>`<i style="background:${h}"></i>`).join('');
+  const tops=TOPICS.topics.slice(0,10).map((t,i)=>{const hx=PAL10[i%10];
+    return `<a class="tile" href="#/topic/${t.id}" style="background:${tileBg(hx)};--tsh:color-mix(in srgb,${hx} 55%,transparent)"><span class="chip">${ic(topicIcon(t))}</span><span class="lb">${esc(t.name)}</span></a>`}).join('');
+  const ac=acts().slice(0,10).map(a=>`<a class="tile" href="#/a/${a.id}" style="background:${tileBg(a.hue)};--tsh:color-mix(in srgb,${a.hue} 55%,transparent)"><span class="chip"><span class="mono">${esc(a.abbr)}</span></span><span class="lb">${esc(a.short)}</span></a>`).join('');
+  const study=[['Recall drill','108 cards','activity','#797efe','/study'],['Section quiz','name it','alert','#fc8f66','/study'],['Scenarios','37 worked','file','#3dcfae','/study'],['Drug matrix','MDA','droplet','#fec846','/drugs']]
+    .map(([n,d,i,h,r])=>`<a class="tile" href="#${r}" style="background:${tileBg(h)};--tsh:color-mix(in srgb,${h} 55%,transparent)"><span class="chip">${ic(i)}</span><span class="lb">${n}<small>${d}</small></span></a>`).join('');
+  const last=ls.get('last',null);
+  const cont=last?`<a class="cont" href="#/s/${last.a}/${last.id}" style="background:${tileBg(hue(last.a))};--tsh:color-mix(in srgb,${hue(last.a)} 55%,transparent)"><span class="big">${esc(last.num)}</span><div class="meta"><div class="tag">${esc(SRC[last.a].short)} · ${esc(last.disp)}</div><div class="tt">${esc(last.t)}</div><div class="ex">${esc(last.p||'')}</div></div><span class="play">${ic('play')}</span></a>`
+    :`<a class="cont" href="#/s/cc/cc-279" style="background:${tileBg(hue('cc'))};--tsh:color-mix(in srgb,${hue('cc')} 55%,transparent)"><span class="big">279</span><div class="meta"><div class="tag">Criminal Code · s 279</div><div class="tt">Murder</div><div class="ex">Start with the homicide spine, or jump anywhere with search.</div></div><span class="play">${ic('play')}</span></a>`;
+  $('#main').innerHTML=`
+    <div class="legend fade">${legend}</div>
+    <h1 class="h-title fade">Verbatim WA law,<br>in your pocket.</h1>
+    <a class="sfield fade" href="#/search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> Search ${REG.counts.provisions.toLocaleString()} provisions… <span class="kbd">⌘K</span></a>
+    <div class="row-h"><h2>Jump back in</h2></div>
+    <div class="tilegrid fade">${cont}</div>
+    <div class="row-h"><h2>Topics</h2><a class="more" href="#/topics">All ${TOPICS.topics.length}</a></div>
+    <div class="tilegrid fade">${tops}</div>
+    <div class="row-h"><h2>Acts &amp; Codes</h2><a class="more" href="#/browse">All ${REG.counts.acts}</a></div>
+    <div class="tilegrid fade">${ac}</div>
+    <div class="row-h"><h2>Study</h2></div>
+    <div class="tilegrid fade">${study}</div>`;
+}
+
+/* ---------- BROWSE ---------- */
+function renderBrowse(mode){
+  const seg=`<div class="seg"><a class="${mode==='topics'?'on':''}" href="#/topics">Topics</a><a class="${mode==='acts'?'on':''}" href="#/browse">Acts</a></div>`;
+  let body='';
+  if(mode==='topics'){
+    body=TOPICS.doms.map((d,i)=>{const ts=TOPICS.topics.filter(t=>t.dom===i);if(!ts.length)return'';
+      return `<div class="row-h" style="margin-top:24px"><h2 style="font-size:1rem">${esc(d)}</h2></div><div class="tilegrid">`+
+        ts.map((t,j)=>{const hx=PAL10[(i*3+j)%10];return `<a class="tile" href="#/topic/${t.id}" style="background:${tileBg(hx)};--tsh:color-mix(in srgb,${hx} 55%,transparent)"><span class="chip">${ic(topicIcon(t))}</span><span class="lb">${esc(t.name)}</span></a>`}).join('')+`</div>`}).join('');
+  } else {
+    const grp=(label,cat)=>{const xs=REG.sources.filter(s=>s.cat===cat);if(!xs.length)return'';
+      return `<div class="row-h" style="margin-top:22px"><h2 style="font-size:1rem">${label}</h2><span class="more" style="color:var(--ink-4)">${xs.length}</span></div><div class="tilegrid">`+
+        xs.map(a=>`<a class="tile" href="#/a/${a.id}" style="background:${tileBg(a.hue)};--tsh:color-mix(in srgb,${a.hue} 55%,transparent)"><span class="chip"><span class="mono">${esc(a.abbr)}</span></span><span class="lb">${esc(a.short)}</span></a>`).join('')+`</div>`};
+    body=grp('Acts &amp; Codes','act')+grp('Doctrine &amp; manuals','doc')+grp('Reference library','ref');
+  }
+  $('#main').innerHTML=`<h1 class="h-title fade" style="margin-bottom:4px">Browse</h1>${seg}<div class="fade">${body}</div>`;
+}
+
+/* ---------- ACT PAGE (hierarchical tree) ---------- */
+async function renderActPage(aid){
+  if(!SRC[aid]){return renderHome();}
+  $('#main').innerHTML=`<div class="boot"><span class="spin"></span>Loading ${esc(SRC[aid].short)}…</div>`;
+  let d; try{d=await loadAct(aid)}catch(e){$('#main').innerHTML=`<div class="boot">Couldn’t load ${esc(SRC[aid].name)}.</div>`;return}
+  curAct=aid; renderSidebar();
+  const a=SRC[aid], chById=Object.fromEntries((d.chapters||[]).map(c=>[c.id,c]));
+  const secsByCh={}; d.sections.forEach(s=>{(secsByCh[s.ch]=secsByCh[s.ch]||[]).push(s)});
+  const row=s=>`<a class="arow" href="#/s/${aid}/${s.id}"><span class="badge" style="background:${tileBg(a.hue)};--tsh:${tsh(aid)}">${esc(s.num)}</span><div><div class="nm">${esc(s.t)}</div><div class="me">${esc(ud(s))}</div></div><span class="ch">${ic('chev','currentColor')}</span></a>`;
+  let body='';
+  for(const node of (d.tree||[])){
+    body+=`<div class="tree-part"><div class="tp-h">${esc(node.label||'')}${node.title?(' · '+esc(node.title)):''}</div>${node.sub?`<div class="tp-sub">${esc(node.sub)}</div>`:''}`;
+    for(const it of (node.items||[])){
+      if(it.k==='lbl') body+=`<div class="tp-lbl">${esc(it.t)}</div>`;
+      else if(it.k==='sec'){const s=d._byId[it.id]; if(s) body+=row(s);}
+      else if(it.k==='ch'){const c=chById[it.id]; body+=`<div class="tp-ch">${esc(c?c.label:'')}${c&&c.title?(' · '+esc(c.title)):''}</div>`+(secsByCh[it.id]||[]).map(row).join('');}
+    }
+    body+=`</div>`;
+  }
+  $('#main').innerHTML=`
+    <a class="r-back fade" href="#/browse">${ic('back','currentColor')} Browse</a>
+    <div class="r-band fade" style="--h:${a.hue};--hi:${a.ink}"><div class="act"><span style="width:9px;height:9px;border-radius:3px;background:${a.hue};display:inline-block"></span>${a.cat==='act'?'Act':a.cat==='doc'?'Doctrine':'Reference'}${a.comp?(' · as at '+esc(a.comp)):''}</div><div class="stt" style="margin-top:8px">${esc(a.name)}</div><div style="font-size:13px;color:var(--ink-3);margin-top:6px">${a.n?a.n.toLocaleString()+' provisions':''}</div></div>
+    <div class="fade">${body}</div>`;
+}
+
+/* ---------- READER ---------- */
+async function openSec(aid,sid){
+  if(!SRC[aid]) return renderHome();
+  $('#main').innerHTML=`<div class="boot"><span class="spin"></span>Loading…</div>`;
+  let d; try{d=await loadAct(aid)}catch(e){$('#main').innerHTML=`<div class="boot">Couldn’t load that section.</div>`;return}
+  const s=d._byId[sid]; if(!s){$('#main').innerHTML=`<div class="boot">Section not found.</div>`;return}
+  curAct=aid; curSec=sid;
+  const a=SRC[aid];
+  pushRecent(aid,s); ls.set('last',{a:aid,id:sid,num:s.num,disp:ud(s),t:s.t,p:(s.b||'').slice(0,140)});
+  renderSidebar();
+  const alt=s.alt?`<div class="altbox"><div><div class="lbl">Alternative charges</div><div class="body">${esc(s.alt)}</div></div></div>`:'';
+  const idx=d.sections.indexOf(s), prev=idx>0?d.sections[idx-1]:null, next=idx<d.sections.length-1?d.sections[idx+1]:null;
+  const refs=(s.rf||[]).map(r=>d._byId[r]).filter(Boolean).slice(0,12);
+  const chips=refs.length?`<div class="cite-h">Cited in this section</div><div class="cwrap">`+refs.map(r=>`<a class="chip2" href="#/s/${aid}/${r.id}"><span class="n" style="background:${a.ink}">${esc(ud(r))}</span>${esc((r.t||'').slice(0,32))}</a>`).join('')+`</div>`:'';
+  const inT=TOPICS.topics.filter(t=>JSON.stringify(t.clusters||[]).includes('"'+sid+'"')).slice(0,4);
+  const topc=inT.length?`<div class="cite-h">Appears in topics</div><div class="cwrap">`+inT.map(t=>`<a class="chip2" href="#/topic/${t.id}">${esc(t.name)}</a>`).join('')+`</div>`:'';
+  const marksOn=ls.get('marks',true);
+  const saved=(ls.get('saved',[])||[]).some(x=>x.a===aid&&x.id===sid);
+  $('#main').innerHTML=`
+    <a class="r-back fade" href="#/a/${aid}">${ic('back','currentColor')} ${esc(a.short)}</a>
+    <div class="r-card fade"><div class="r-strip" style="--h:${a.hue};--hi:${a.ink}"></div>
+      <div class="r-head" style="--h:${a.hue};--hi:${a.ink}"><span class="snum">${esc(ud(s))}</span><div><div class="act"><i></i>${esc(a.name)}</div><div class="stt">${esc(s.t)}</div></div></div>
+      <div class="r-body" style="--h:${a.hue};--hi:${a.ink}">${alt}<div class="statute" id="statBody">${marksOn?markTerms(s.h,aid):s.h}</div>${chips}${topc}</div></div>
+    <div class="r-actions">
+      <button class="ract" id="saveBtn">${ic('heart','currentColor')} ${saved?'Saved':'Save'}</button>
+      <button class="ract" id="copyBtn">${ic('copy','currentColor')} Copy</button>
+      <button class="ract" id="markBtn">${marksOn?'Terms ✓':'Terms'}</button></div>`;
+  wireReader(aid,s);
+}
+function wireReader(aid,s){
+  $$('#statBody .xref').forEach(x=>{const t=actCache[aid]._byId[x.dataset.s]; if(t)x.onclick=()=>navigate('/s/'+aid+'/'+t.id); else x.onclick=()=>toast('Cross-reference outside the sample');});
+  $$('#statBody dfn').forEach(df=>df.onclick=e=>{const t=DEFS.find(x=>x.a===aid&&x.t.toLowerCase()===df.dataset.term);if(t)showPop(e,t)});
+  $('#saveBtn').onclick=()=>{toggleSave(aid,s);};
+  $('#copyBtn').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(`${SRC[aid].name} ${ud(s)} — ${s.t}\n\n${s.b}`);toast('Verbatim copied')};
+  $('#markBtn').onclick=()=>{ls.set('marks',!ls.get('marks',true));route()};
+}
+function toggleSave(aid,s){let sv=ls.get('saved',[])||[];const k=x=>x.a===aid&&x.id===s.id;
+  if(sv.some(k)){sv=sv.filter(x=>!k(x));toast('Removed')}else{sv.unshift({a:aid,id:s.id,num:s.num,disp:ud(s),t:s.t});toast('Saved')}
+  ls.set('saved',sv.slice(0,200)); if(curSec===s.id){const b=$('#saveBtn');if(b)b.innerHTML=ic('heart','currentColor')+' '+(sv.some(k)?'Saved':'Save')}}
+function pushRecent(aid,s){let r=ls.get('recents',[])||[];r=r.filter(x=>!(x.a===aid&&x.id===s.id));r.unshift({a:aid,id:s.id,num:s.num,disp:ud(s),t:s.t});ls.set('recents',r.slice(0,30))}
+
+/* defined-term marking (act-scoped, non-destructive, exact spacing) */
+function markTerms(html,aid){
+  const terms=defsOf(aid).slice().sort((a,b)=>b.t.length-a.t.length); if(!terms.length)return html;
+  const tmp=document.createElement('div'); tmp.innerHTML=html;
+  const walk=n=>{for(const c of [...n.childNodes]){
+    if(c.nodeType===3){const txt=c.nodeValue;
+      for(const d of terms){const m=new RegExp('\\b('+escRe(d.t)+')\\b','i').exec(txt);
+        if(m){const f=document.createDocumentFragment();
+          if(m.index>0)f.appendChild(document.createTextNode(txt.slice(0,m.index)));
+          const df=document.createElement('dfn');df.textContent=m[0];df.dataset.term=d.t.toLowerCase();f.appendChild(df);
+          const rest=txt.slice(m.index+m[0].length);if(rest)f.appendChild(document.createTextNode(rest));
+          c.replaceWith(f);break;}}}
+    else if(c.nodeType===1&&!['DFN','A'].includes(c.tagName)&&!c.classList.contains('mk'))walk(c);}};
+  walk(tmp); return tmp.innerHTML;
+}
+function showPop(e,d){const p=$('#pop');
+  p.innerHTML=`<div class="pt">${esc(d.t)}</div><div class="ps">${esc(SRC[d.a].abbr)} s ${esc(d.num)}${d.sc?(' · '+esc(d.sc)):''}</div><div class="pd">${esc(d.d)}</div><div class="pj" id="popjump">Open s ${esc(d.num)} →</div>`;
+  const r=e.target.getBoundingClientRect();p.style.left=Math.min(r.left,innerWidth-316)+'px';p.style.top=Math.min(r.bottom+8,innerHeight-230)+'px';p.classList.add('on');
+  $('#popjump').onclick=()=>{p.classList.remove('on');navigate('/s/'+d.a+'/'+d.s)};
+}
+
+/* ---------- TOPIC ---------- */
+function renderTopicPage(id){
+  const t=TOPICS.topics.find(x=>x.id===id); if(!t)return renderBrowse('topics');
+  const fam=(t.clusters&&t.clusters[0]&&t.clusters[0].c[0])?SRC[t.clusters[0].c[0].a].fam:'blue';const hx=REG.palette[fam];
+  const cl=(t.clusters||[]).map(c=>`<div class="cite-h">${esc(c.h)}</div><div style="display:flex;flex-direction:column;gap:9px">`+
+    (c.c||[]).map(x=>`<a class="chip2" style="justify-content:flex-start;padding:13px 15px" href="#/s/${x.a}/${x.s}"><span class="n" style="background:${ink(x.a)}">${esc((x.u==='s'?'s ':'')+x.n)}</span><span style="font-weight:600">${esc(x.t)}</span><span style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--ink-4)">${esc(SRC[x.a].abbr)}</span></a>`).join('')+`</div>`).join('');
+  $('#main').innerHTML=`<a class="r-back fade" href="#/topics">${ic('back','currentColor')} Topics</a>
+    <div class="tile fade" style="min-height:96px;align-items:flex-start;margin:6px 0 16px;background:${tileBg(hx)};--tsh:color-mix(in srgb,${hx} 55%,transparent)"><span class="chip">${ic(topicIcon(t))}</span><span class="lb" style="font-size:1.3rem;text-align:left;margin-top:8px">${esc(t.name)}<small style="font-size:12.5px;line-height:1.4">${esc(t.blurb||'')}</small></span></div>${cl}`;
+}
+
+/* ---------- SEARCH ---------- */
+let searchT;
+function renderSearch(q){
+  $('#main').innerHTML=`<h1 class="h-title fade" style="margin-bottom:8px">Search</h1>
+    <div class="sfield fade" style="height:54px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="sin" placeholder="Section number, words in a provision, or a term…" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1;border:0;outline:0;background:none;font-size:15.5px;color:var(--ink);font-family:inherit"></div>
+    <div class="s-recent fade"><span style="font-size:12px;color:var(--ink-4);align-self:center;margin-right:2px">Try</span>
+      <a class="s-rchip" href="#/search/279">279</a><a class="s-rchip" href="#/search/murder">murder</a><a class="s-rchip" href="#/search/grievous">grievous bodily harm</a><a class="s-rchip" href="#/search/deemed%20supply">deemed supply</a></div>
+    <div class="s-res" id="sres"></div>`;
+  const i=$('#sin'); i.value=q||''; i.addEventListener('input',()=>{clearTimeout(searchT);searchT=setTimeout(()=>runSearch(i.value),120)});
+  i.focus(); runSearch(q||'');
+  if(!FTEXT && !loadingFT){ loadingFT=true; jget('ftext.json').then(d=>{FTEXT=d;loadingFT=false; if($('#sin'))runSearch($('#sin').value)}).catch(()=>loadingFT=false); }
+}
+function runSearch(q){
+  q=(q||'').trim().toLowerCase(); const el=$('#sres'); if(!el)return;
+  if(!q){el.innerHTML=`<p class="empty">Start typing — results appear instantly, fully offline.</p>`;return}
+  const isNum=/^\d/.test(q.replace(/^s\.?\s*/,'')); const qn=q.replace(/^s\.?\s*/,'');
+  const titleHit=[], seen=new Set();
+  for(const e of SEARCH){const t=(e.num+' '+e.t).toLowerCase();
+    if((isNum&&String(e.num).toLowerCase().startsWith(qn))||t.includes(q)){titleHit.push(e);seen.add(e.a+'|'+e.id);if(titleHit.length>=40)break;}}
+  const defs=DEFS.filter(d=>d.t.toLowerCase().includes(q)).slice(0,12);
+  const tops=TOPICS.topics.filter(t=>t.name.toLowerCase().includes(q)).slice(0,8);
+  const srcs=REG.sources.filter(s=>(s.name+' '+s.abbr).toLowerCase().includes(q)).slice(0,6);
+  let bodyHit=[];
+  if(FTEXT && q.length>=2){ for(const e of SEARCH){const k=e.a+'|'+e.id; if(seen.has(k))continue; const b=FTEXT[k]; if(b&&b.includes(q)){bodyHit.push(e); if(bodyHit.length>=40)break;}} }
+  const secRow=e=>`<a class="s-item" href="#/s/${e.a}/${e.id}"><span class="sn" style="background:${ink(e.a)}">${esc((e.u==='s'?'s ':'')+e.num)}</span><span class="stx">${esc(e.t)}</span><span class="smeta">${esc(SRC[e.a].abbr)}</span></a>`;
+  let html='';
+  if(titleHit.length){html+=`<div class="s-grp">Sections</div>`+titleHit.slice(0,12).map(secRow).join('')}
+  if(srcs.length){html+=`<div class="s-grp">Acts &amp; sources</div>`+srcs.map(s=>`<a class="s-item" href="#/a/${s.id}"><span class="sn" style="background:${s.hue}"> </span><span class="stx">${esc(s.name)}</span><span class="smeta">${esc(s.abbr)}</span></a>`).join('')}
+  if(defs.length){html+=`<div class="s-grp">Definitions</div>`+defs.map(d=>`<a class="s-item" href="#/s/${d.a}/${d.s}"><span class="sn" style="background:var(--ink-3)">def</span><span class="stx">${esc(d.t)}</span><span class="smeta">${esc(SRC[d.a].abbr)} ${esc(d.num)}</span></a>`).join('')}
+  if(tops.length){html+=`<div class="s-grp">Topics</div>`+tops.map(t=>`<a class="s-item" href="#/topic/${t.id}"><span class="sn" style="background:#94a3b8">topic</span><span class="stx">${esc(t.name)}</span></a>`).join('')}
+  if(bodyHit.length){html+=`<div class="s-grp">In the provision text</div>`+bodyHit.slice(0,14).map(secRow).join('')}
+  else if(!FTEXT){html+=`<div class="s-grp" style="color:var(--ink-4)"><span class="spin" style="width:11px;height:11px"></span> loading full-text…</div>`}
+  el.innerHTML=html||`<p class="empty">No matches for “${esc(q)}”.</p>`;
+}
+
+/* ---------- STUDY / SAVED / RECENTS / DEFS / DRUGS ---------- */
+function studyTiles(full){return [['Recall drill',full?'108 scaffold cards · weakest-first':'108 cards','activity','#797efe','toast'],['Section quiz',full?'name the section':'name it','alert','#fc8f66','toast'],['Scenarios',full?'37 worked examples':'37 worked','file','#3dcfae','scen'],['Drug matrix','MDA quantities','droplet','#fec846','/drugs']]
+  .map(([n,d,i,h,a])=>`<a class="tile" ${a==='/drugs'?`href="#/drugs"`:`data-act="${a}"`} style="background:${tileBg(h)};--tsh:color-mix(in srgb,${h} 55%,transparent)"><span class="chip">${ic(i)}</span><span class="lb">${n}<small>${d}</small></span></a>`).join('')}
+function renderStudy(){
+  $('#main').innerHTML=`<h1 class="h-title fade">Study</h1><div class="tilegrid fade">${studyTiles(true)}</div>
+   <p style="color:var(--ink-4);font-size:13px;margin-top:20px">Every drill string is assembled from verbatim source — no invented law. Drill and quiz modes land in a later slice.</p>`;
+  $$('#main .tile[data-act]').forEach(t=>t.onclick=()=>{t.dataset.act==='scen'?renderScenarios():toast('Drill mode lands in a later slice')});
+}
+function renderScenarios(){
+  loadStudy().then(()=>{const sc=STUDY.scen;const keys=Object.keys(sc);
+    const body=keys.map(k=>{const v=sc[k];const a=k.split(':')[0];return `<div class="r-card" style="margin-bottom:12px;--h:${hue(a)};--hi:${ink(a)}"><div class="r-body"><div class="tag" style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--hi)">${esc(v.h||'')}</div><p style="margin:6px 0 0;color:var(--ink-2)">${esc(v.fact||'')}</p></div></div>`}).join('');
+    $('#main').innerHTML=`<a class="r-back fade" href="#/study">${ic('back','currentColor')} Study</a><h1 class="h-title" style="margin:6px 0 12px">Scenarios</h1><div class="fade">${body}</div>`;
+  });
+}
+function renderSaved(){
+  const sv=ls.get('saved',[])||[];
+  const body=sv.length?sv.map(x=>`<a class="arow" href="#/s/${x.a}/${x.id}"><span class="badge" style="background:${tileBg(hue(x.a))};--tsh:${tsh(x.a)}">${esc(x.num)}</span><div><div class="nm">${esc(x.t)}</div><div class="me">${esc(SRC[x.a].abbr)} · ${esc(x.disp)}</div></div><span class="ch">${ic('chev','currentColor')}</span></a>`).join(''):`<p class="empty">No saved sections yet. Tap ♥ Save in any provision.</p>`;
+  $('#main').innerHTML=`<h1 class="h-title fade">Saved</h1><div class="fade">${body}</div>`;
+}
+function renderRecents(){
+  const r=ls.get('recents',[])||[];
+  const body=r.length?r.map(x=>`<a class="arow" href="#/s/${x.a}/${x.id}"><span class="badge" style="background:${tileBg(hue(x.a))};--tsh:${tsh(x.a)}">${esc(x.num)}</span><div><div class="nm">${esc(x.t)}</div><div class="me">${esc(SRC[x.a].abbr)} · ${esc(x.disp)}</div></div><span class="ch">${ic('chev','currentColor')}</span></a>`).join(''):`<p class="empty">No recents yet — open a section and it’ll show here.</p>`;
+  $('#main').innerHTML=`<h1 class="h-title fade">Recent</h1><div class="fade">${body}</div>`;
+}
+function renderDefs(){
+  const byL={};DEFS.forEach(d=>{const L=(d.t[0]||'#').toUpperCase();(byL[L]=byL[L]||[]).push(d)});
+  const body=Object.keys(byL).sort().map(L=>`<div class="sb-letter" style="font-size:13px;padding:14px 2px 6px">${L}</div>`+byL[L].slice().sort((a,b)=>a.t.localeCompare(b.t)).map(d=>`<a class="s-item" href="#/s/${d.a}/${d.s}"><span class="stx">${esc(d.t)}</span><span class="smeta">${esc(SRC[d.a].abbr)} ${esc(d.num)}</span></a>`).join('')).join('');
+  $('#main').innerHTML=`<h1 class="h-title fade">Definitions</h1><p style="color:var(--ink-3);font-size:13.5px;margin:-6px 0 8px">${DEFS.length.toLocaleString()} defined terms across all Acts, verbatim.</p><div class="fade">${body}</div>`;
+}
+async function loadStudy(){if(!STUDY)STUDY=await jget('study.json');return STUDY}
+function renderDrugMatrix(){
+  $('#main').innerHTML=`<div class="boot"><span class="spin"></span>Loading…</div>`;
+  loadStudy().then(()=>{const dr=STUDY.drugs,cols=dr.cols||[],rows=dr.rows||[];
+    const head=`<tr><th style="text-align:left">Drug</th>`+cols.map(c=>`<th>${esc(c.label)}</th>`).join('')+`</tr>`;
+    const trs=rows.map(r=>`<tr><td style="font-weight:620">${esc(r.name)}</td>`+cols.map(c=>{const cell=r.cells&&r.cells[c.k];return `<td style="text-align:center;font-family:var(--mono)">${cell?esc(cell.amt):'—'}</td>`}).join('')+`</tr>`).join('');
+    $('#main').innerHTML=`<a class="r-back fade" href="#/study">${ic('back','currentColor')} Study</a>
+      <div class="r-band fade" style="--h:#fec846;--hi:#946a00"><div class="act">Misuse of Drugs Act</div><div class="stt" style="margin-top:8px">Drug quantity matrix</div></div>
+      <p style="color:var(--ink-3);font-size:13.5px;margin:-6px 0 12px">Threshold amounts by schedule — assembled verbatim from the Act &amp; Schedules.</p>
+      <div class="matwrap fade"><table>${head}${trs}</table></div>`;
+  });
+}
+
+/* ---------- SIDEBAR ---------- */
+function renderSidebar(){
+  $$('.sb-switch button').forEach(b=>b.classList.toggle('on',b.dataset.mode===sbMode));
+  const key=sbMode+'|'+(sbMode==='acts'?curAct:'');
+  const body=$('#sbBody'); if(!body)return;
+  if(key!==sbKey){
+    sbKey=key;
+    if(sbMode==='acts'){
+      body.innerHTML=REG.sources.map(a=>{
+        const cur=a.id===curAct, d=actCache[a.id], open=cur&&d;
+        const head=`<a class="sb-act ${cur?'cur':''}" href="#/a/${a.id}"><span class="dot" style="background:${a.hue}"></span><span class="nm">${esc(a.short)}</span>${d&&cur?`<span class="cv op">›</span>`:`<span class="ab">${esc(a.abbr)}</span>`}</a>`;
+        const tree=open?`<div class="sb-tree">`+d.sections.map(s=>`<a class="sb-sub" data-sid="${s.id}" href="#/s/${a.id}/${s.id}"><span class="n">${esc(s.num)}</span>${esc(s.t)}</a>`).join('')+`</div>`:'';
+        return head+tree}).join('');
+    } else if(sbMode==='topics'){
+      body.innerHTML=TOPICS.doms.map((d,i)=>{const ts=TOPICS.topics.filter(t=>t.dom===i);if(!ts.length)return'';
+        return `<div class="sb-dom">${esc(d)}</div>`+ts.map((t,j)=>`<a class="sb-topic" href="#/topic/${t.id}"><span class="dot" style="background:${PAL10[(i*3+j)%10]}"></span><span class="nm">${esc(t.name)}</span></a>`).join('')}).join('');
+    } else {
+      const byL={};DEFS.forEach(d=>{const L=(d.t[0]||'#').toUpperCase();(byL[L]=byL[L]||[]).push(d)});
+      body.innerHTML=Object.keys(byL).sort().map(L=>`<div class="sb-letter">${L}</div>`+byL[L].slice().sort((a,b)=>a.t.localeCompare(b.t)).map(d=>`<a class="sb-term" href="#/s/${d.a}/${d.s}"><span>${esc(d.t)}</span><span class="src">${esc(SRC[d.a].abbr)} ${esc(d.num)}</span></a>`).join('')).join('');
+    }
+  }
+  if(sbMode==='acts'){ $$('#sbBody .sb-sub').forEach(e=>e.classList.toggle('cur',e.dataset.sid===curSec)); }
+}
+function sbSwitch(m){sbMode=m;ls.set('sbMode',m);renderSidebar()}
+
+/* ---------- drawer / theme / size ---------- */
+function menuTap(){ innerWidth<861?openDrawer():document.body.classList.toggle('sb-collapsed'); }
+function openDrawer(){$('#sidebar').classList.add('open');$('#sbScrim').classList.add('on')}
+function closeDrawer(){const s=$('#sidebar');if(s)s.classList.remove('open');const sc=$('#sbScrim');if(sc)sc.classList.remove('on')}
+function toggleTheme(){const r=document.documentElement;r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';ls.set('theme',r.dataset.theme)}
+function applySize(){const z=ls.get('size',1);document.documentElement.style.setProperty('--rsz',z);$$('.page')&&($('#main').style.fontSize=z+'em')}
+function cycleSize(){let z=ls.get('size',1);z=z>=1.18?.9:Math.round((z+.08)*100)/100;ls.set('size',z);$('#main').style.fontSize=z+'em';toast('Text size '+Math.round(z*100)+'%')}
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),1700)}
+
+/* ---------- PWA ---------- */
+let deferredPrompt=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;const b=$('#installBtn');if(b){b.hidden=false;b.onclick=async()=>{b.hidden=true;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null}}});
+if('serviceWorker'in navigator){addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}))}
+
+boot();
+})();

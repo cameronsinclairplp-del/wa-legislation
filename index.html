@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<title>WA Legislation</title>
+<meta name="description" content="Every WA Act a detective needs — verbatim, offline, fast.">
+<meta name="theme-color" content="#eef2f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c0d12" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="WA Law">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<div id="app">
+  <div class="dockwrap"><nav class="dock" id="dock">
+    <button class="di" data-route="/home"><span class="ic" data-i="home"></span><span class="lb">Home</span></button>
+    <button class="di" data-route="/browse"><span class="ic" data-i="browse"></span><span class="lb">Browse</span></button>
+    <button class="di" data-route="/search"><span class="ic" data-i="search"></span><span class="lb">Search</span></button>
+    <button class="di" data-route="/study"><span class="ic" data-i="study"></span><span class="lb">Study</span></button>
+    <button class="di" data-route="/saved"><span class="ic" data-i="saved"></span><span class="lb">Saved</span></button>
+  </nav></div>
+
+  <aside class="sidebar" id="sidebar">
+    <button class="sb-srch" data-route="/search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> Search… <span class="k">⌘K</span></button>
+    <div class="sb-switch">
+      <button id="sw-acts" data-mode="acts">Acts</button>
+      <button id="sw-topics" data-mode="topics">Topics</button>
+      <button id="sw-terms" data-mode="terms">Terms</button>
+    </div>
+    <div id="sbBody"></div>
+    <div class="sb-more">
+      <button class="sb-link" data-route="/drugs"><svg viewBox="0 0 24 24"><path d="M12 2.7s5.5 5.6 5.5 9.8a5.5 5.5 0 1 1-11 0C6.5 8.3 12 2.7 12 2.7Z"/></svg> Drug matrix</button>
+      <button class="sb-link" data-route="/recents"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg> Recents</button>
+    </div>
+  </aside>
+  <div class="sb-scrim" id="sbScrim"></div>
+
+  <div class="colmain">
+    <header class="appbar">
+      <button class="rbtn menubtn" id="menuBtn" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <a class="wm" data-route="/home" href="#/home"><span class="g"></span>WA Legislation</a>
+      <div class="sp"></div>
+      <button class="rbtn" id="installBtn" aria-label="Install" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg></button>
+      <button class="rbtn" id="searchBtn" aria-label="Search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
+      <button class="rbtn" id="sizeBtn" aria-label="Text size">A</button>
+      <button class="rbtn" id="themeBtn" aria-label="Theme">◐</button>
+    </header>
+    <main class="page" id="main"><div class="boot">Loading the statute library…</div></main>
+  </div>
+</div>
+<div class="pop" id="pop"></div>
+<div class="toast" id="toast"></div>
+<script src="./app.js"></script>
+</body>
+</html>
