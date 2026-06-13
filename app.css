@@ -67,7 +67,8 @@ svg{display:block}
 .sb-letter{font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--ink-4);padding:11px 9px 3px}
 .sb-term{display:flex;align-items:center;gap:9px;width:100%;padding:6px 9px;border-radius:8px;color:var(--ink-2);font-size:13px;text-align:left}
 .sb-term:hover{background:var(--paper)}
-.sb-term span:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-term .tdot{width:7px;height:7px;border-radius:2px;flex:none}
+.sb-term .ttx{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sb-term .src{flex:none;font-family:var(--mono);font-size:10px;color:var(--ink-4)}
 .sb-more{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
 .sb-link{display:flex;align-items:center;gap:10px;width:100%;padding:8px 9px;border-radius:9px;color:var(--ink-2);font-size:13px;font-weight:550;text-align:left}
@@ -192,7 +193,8 @@ svg{display:block}
 .statute .tx{flex:1}
 .statute .altrow{margin-top:10px;font-size:13px;color:var(--ink-3);display:flex;gap:8px;flex-wrap:wrap}
 .statute .alt-label{font-weight:650;color:var(--ink-2)}
-.statute dfn{font-style:normal;border-bottom:2px dotted color-mix(in srgb,var(--h) 70%,var(--ink-4));cursor:help;text-underline-offset:3px}
+.statute dfn{font-style:normal;cursor:pointer;background:color-mix(in srgb,var(--h) 13%,transparent);border-radius:4px;padding:0 2px;box-decoration-break:clone;-webkit-box-decoration-break:clone;transition:background .12s}
+.statute dfn:hover{background:color-mix(in srgb,var(--h) 22%,transparent)}
 .xref{color:var(--hi);font-weight:650;cursor:pointer;border-bottom:1.5px solid color-mix(in srgb,var(--h) 50%,transparent)}
 .cite-h{font-size:11.5px;font-weight:750;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-4);margin:26px 0 12px}
 .cwrap{display:flex;flex-wrap:wrap;gap:9px}
@@ -308,3 +310,48 @@ button,a{-webkit-tap-highlight-color:transparent}
 :focus-visible{outline:2px solid var(--h);outline-offset:2px;border-radius:8px}
 .arow,.tile,.cont,.chip2,.s-item,.di,.pgbtn{-webkit-user-select:none;user-select:none}
 .statute,.statute *{-webkit-user-select:text;user-select:text}
+
+/* ===== reader toolbar (replaces floating bottom bar — fixes dock collision) ===== */
+.r-top{display:flex;align-items:center;gap:10px;margin:6px 0 8px}
+.r-top .r-back{margin:0;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.r-tools{margin-left:auto;display:flex;gap:7px;flex:none}
+.rtb{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:11px;background:var(--card);border:1px solid var(--line);box-shadow:var(--sh-sm);font-size:13px;font-weight:600;color:var(--ink-2)}
+.rtb svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
+.rtb.on{color:var(--hi);background:color-mix(in srgb,var(--h) 12%,var(--card));border-color:color-mix(in srgb,var(--h) 30%,transparent)}
+.rtb:active{transform:scale(.95)}
+@media(max-width:430px){.rtb span{display:none}.rtb{width:38px;padding:0;justify-content:center}}
+
+/* ===== Memorise (recall scaffold) card ===== */
+.memo{background:var(--card);border:1px solid color-mix(in srgb,var(--h) 28%,var(--line));border-radius:var(--radius-lg);box-shadow:var(--sh-sm);padding:16px 18px 14px 20px;margin:20px 0 0;position:relative;overflow:hidden}
+.memo::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--h)}
+.memo-h{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.memo-badge{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:750;letter-spacing:.03em;text-transform:uppercase;color:var(--hi)}
+.memo-badge svg{width:15px;height:15px;stroke:var(--hi);fill:none;stroke-width:2}
+.memo-ct{font-family:var(--mono);font-size:11.5px;font-weight:700;color:#fff;background:var(--hi);border-radius:7px;padding:2px 7px;margin-left:2px}
+.memo-act{margin-left:auto;display:flex;gap:6px}
+.mbtn{height:30px;padding:0 11px;border-radius:9px;font-size:12px;font-weight:600;color:var(--ink-2);background:var(--paper);border:1px solid var(--line);display:inline-flex;align-items:center;gap:5px}
+.mbtn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2}
+.mbtn:active{transform:scale(.95)}
+.memo-name{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:10px}
+.memo-name .memo-sec{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--ink-4);margin-left:4px}
+.memo-hook{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--hi);background:color-mix(in srgb,var(--h) 10%,var(--card));border-radius:10px;padding:9px 12px;margin-bottom:13px;line-height:1.45;font-weight:560}
+.memo-hook svg{width:15px;height:15px;stroke:var(--hi);fill:none;stroke-width:2;flex:none;margin-top:1px}
+.memo-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.mitem{display:flex;gap:11px;align-items:flex-start;border-radius:10px;padding:2px;transition:background .12s}
+.mitem .mk{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--hi);background:color-mix(in srgb,var(--h) 13%,var(--card));border-radius:7px;min-width:25px;height:25px;display:grid;place-items:center;flex:none;margin-top:1px}
+.mbody{flex:1;min-width:0}
+.mtx{display:block;font-size:14.5px;color:var(--ink);line-height:1.42}
+.meg{display:block;font-size:13px;color:var(--ink-3);line-height:1.45;margin-top:4px;padding-left:10px;border-left:2px solid color-mix(in srgb,var(--h) 35%,transparent)}
+.memo-note{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin-top:14px;padding-top:11px;border-top:1px solid var(--line-2)}
+.memo-fyi{font-size:11px;color:var(--ink-4);margin-top:11px;font-style:italic}
+/* drill mode: blur the answers, tap an item to reveal */
+.memo.drill .mitem{cursor:pointer}
+.memo.drill .mbody{filter:blur(5px);opacity:.6;transition:.16s}
+.memo.drill .mitem.shown .mbody{filter:none;opacity:1}
+.memo.drill .mitem:hover{background:var(--paper)}
+
+/* ===== Terms A–Z jump + life ===== */
+.sb-az{position:sticky;top:0;z-index:3;display:flex;flex-wrap:wrap;gap:1px;padding:6px 2px 8px;background:var(--card);margin:0 0 2px;border-bottom:1px solid var(--line-2)}
+.azl{font-size:10.5px;font-weight:700;color:var(--ink-3);min-width:18px;height:18px;border-radius:5px;display:grid;place-items:center;padding:0}
+.azl:hover,.azl:active{background:color-mix(in srgb,var(--h) 16%,var(--card));color:var(--hi)}
+.sb-letter{scroll-margin-top:38px}

@@ -12,7 +12,7 @@ const ls={get(k,d){try{const v=localStorage.getItem(NS+k);return v==null?d:JSON.
           set(k,v){try{localStorage.setItem(NS+k,JSON.stringify(v))}catch(e){}}};
 const DATA='./data/';
 
-let REG, SRC={}, PAL10=[], SEARCH=[], DEFS=[], TOPICS={doms:[],topics:[]}, STUDY=null, FTEXT=null;
+let REG, SRC={}, PAL10=[], SEARCH=[], DEFS=[], TOPICS={doms:[],topics:[]}, STUDY=null, FTEXT=null, SCAF={};
 const actCache={};
 let curAct=null, curSec=null, sbMode=ls.get('sbMode','acts'), sbKey='', loadingFT=false, curPrev=null, curNext=null;
 
@@ -61,8 +61,8 @@ async function boot(){
     REG=await jget('registry.json');
     REG.sources.forEach(s=>SRC[s.id]=s);
     PAL10=['blue','teal','orange','purple','indigo','pink','gold','cyan','emerald','brown'].map(f=>REG.palette[f]);
-    const [sj,dj,tj]=await Promise.all([jget('search.json'),jget('defs.json'),jget('topics.json')]);
-    SEARCH=sj; TOPICS=tj; DEFS=dj.acts.flatMap(a=>a.terms.map(t=>({t:t.t,a:a.a,s:t.s,num:t.num,sc:t.sc,d:t.d})));
+    const [sj,dj,tj,scf]=await Promise.all([jget('search.json'),jget('defs.json'),jget('topics.json'),jget('scaffolds.json').catch(()=>({}))]);
+    SEARCH=sj; TOPICS=tj; SCAF=scf||{}; DEFS=dj.acts.flatMap(a=>a.terms.map(t=>({t:t.t,a:a.a,s:t.s,num:t.num,sc:t.sc,d:t.d})));
     paintChrome();
     addEventListener('hashchange',route);
     if(!location.hash) location.hash='#/home';
@@ -96,6 +96,7 @@ function paintChrome(){
     else if(e.key.toLowerCase()==='t'){toggleTheme()}
   });
   document.addEventListener('click',e=>{if(!e.target.closest('dfn')&&!e.target.closest('#pop'))hideTerm();});
+  $('#sbBody').addEventListener('click',e=>{const b=e.target.closest('.azl');if(b){e.preventDefault();const el=document.getElementById('sbL-'+b.dataset.l);if(el)el.scrollIntoView({block:'start'})}});
   renderSidebar();
 }
 function navigate(h){ if(location.hash==='#'+h){route();} else location.hash='#'+h; }
@@ -208,27 +209,53 @@ async function openSec(aid,sid){
   const saved=(ls.get('saved',[])||[]).some(x=>x.a===aid&&x.id===sid);
   curPrev=prev?('/s/'+aid+'/'+prev.id):null; curNext=next?('/s/'+aid+'/'+next.id):null;
   const pager=(prev||next)?`<div class="pager">${prev?`<a class="pgbtn" href="#/s/${aid}/${prev.id}"><span class="dir">‹ Previous</span><span class="pnm">${esc(ud(prev))} · ${esc((prev.t||'').slice(0,42))}</span></a>`:'<span></span>'}${next?`<a class="pgbtn next" href="#/s/${aid}/${next.id}"><span class="dir">Next ›</span><span class="pnm">${esc(ud(next))} · ${esc((next.t||'').slice(0,42))}</span></a>`:'<span></span>'}</div>`:'';
+  const key=aid+'|'+sid; const memo=SCAF[key]?scaffoldCard(key,SCAF[key],a):'';
   $('#main').innerHTML=`
-    <a class="r-back fade" href="#/a/${aid}">${ic('back','currentColor')} ${esc(a.short)}</a>
+    <div class="r-top fade">
+      <a class="r-back" href="#/a/${aid}">${ic('back','currentColor')} ${esc(a.short)}</a>
+      <div class="r-tools">
+        <button class="rtb" id="saveBtn" aria-label="Save">${ic('heart','currentColor')}<span>${saved?'Saved':'Save'}</span></button>
+        <button class="rtb" id="copyBtn" aria-label="Copy verbatim">${ic('copy','currentColor')}<span>Copy</span></button>
+        <button class="rtb ${marksOn?'on':''}" id="markBtn" aria-label="Defined-term highlights">${ic('book','currentColor')}<span>Terms</span></button>
+      </div>
+    </div>
     <div class="r-card fade"><div class="r-strip" style="--h:${a.hue};--hi:${a.ink}"></div>
       <div class="r-head" style="--h:${a.hue};--hi:${a.ink}"><span class="snum">${esc(ud(s))}</span><div><div class="act"><i></i>${esc(a.name)}</div><div class="stt">${esc(s.t)}</div></div></div>
       <div class="r-body" style="--h:${a.hue};--hi:${a.ink}">${alt}<div class="statute" id="statBody">${marksOn?markTerms(s.h,aid):s.h}</div>${chips}${topc}</div></div>
-    ${pager}
-    <div class="r-actions">
-      <button class="ract" id="saveBtn">${ic('heart','currentColor')} ${saved?'Saved':'Save'}</button>
-      <button class="ract" id="copyBtn">${ic('copy','currentColor')} Copy</button>
-      <button class="ract" id="markBtn">${marksOn?'Terms ✓':'Terms'}</button></div>`;
-  wireReader(aid,s);
+    ${memo}
+    ${pager}`;
+  wireReader(aid,s,key);
 }
-function wireReader(aid,s){
+function wireReader(aid,s,key){
   $$('#statBody .xref').forEach(x=>{const t=actCache[aid]._byId[x.dataset.s]; if(t)x.onclick=()=>navigate('/s/'+aid+'/'+t.id); else x.onclick=()=>toast('Cross-reference outside the sample');});
-  $$('#statBody dfn').forEach(df=>{const d=DEFS.find(x=>x.a===aid&&x.t.toLowerCase()===df.dataset.term); if(!d){df.style.borderBottom='none';return;}
+  $$('#statBody dfn').forEach(df=>{const d=DEFS.find(x=>x.a===aid&&x.t.toLowerCase()===df.dataset.term); if(!d){df.style.cssText='background:none;border:0';return;}
     if(FINE){ df.addEventListener('mouseenter',()=>{clearTimeout(tipT);showTerm(df,d)}); df.addEventListener('mouseleave',hideTermSoon); df.addEventListener('click',ev=>{ev.preventDefault();hideTerm();navigate('/s/'+d.a+'/'+d.s)}); }
     else { df.addEventListener('click',ev=>{ev.stopPropagation();showTerm(df,d)}); }
   });
   $('#saveBtn').onclick=()=>{toggleSave(aid,s);};
   $('#copyBtn').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(`${SRC[aid].name} ${ud(s)} — ${s.t}\n\n${s.b}`);toast('Verbatim copied')};
   $('#markBtn').onclick=()=>{ls.set('marks',!ls.get('marks',true));route()};
+  const mc=$('#memoCopy'); if(mc)mc.onclick=()=>copyScaffold(key);
+  const md=$('#memoDrill'); if(md)md.onclick=()=>{const m=$('#memo');const on=m.classList.toggle('drill');md.textContent=on?'Reveal all':'Drill';if(!on)$$('#memo .mitem').forEach(li=>li.classList.remove('shown'));};
+  $$('#memo .mitem').forEach(li=>li.addEventListener('click',()=>{if($('#memo').classList.contains('drill'))li.classList.toggle('shown')}));
+}
+function scaffoldCard(key,sc,a){
+  const items=sc.items.map(it=>`<li class="mitem"><span class="mk">${esc(it.k)}</span><div class="mbody"><span class="mtx">${esc(it.txt)}</span>${it.eg?`<span class="meg">${esc(it.eg)}</span>`:''}</div></li>`).join('');
+  return `<div class="memo fade" id="memo" style="--h:${a.hue};--hi:${a.ink}">
+    <div class="memo-h"><span class="memo-badge">${ic('study','currentColor')} Memorise${sc.count?`<span class="memo-ct">${esc(sc.count.n)}</span>`:''}</span><div class="memo-act"><button class="mbtn" id="memoDrill">Drill</button><button class="mbtn" id="memoCopy">${ic('copy','currentColor')} Copy</button></div></div>
+    ${sc.name?`<div class="memo-name">${esc(sc.name)}${sc.sec?` <span class="memo-sec">${esc(sc.sec)}</span>`:''}</div>`:''}
+    ${sc.hook?`<div class="memo-hook">${ic('activity','currentColor')} ${esc(sc.hook)}</div>`:''}
+    <ol class="memo-list">${items}</ol>
+    ${sc.note?`<div class="memo-note">${esc(sc.note)}</div>`:''}
+    <div class="memo-fyi">Study aid — your own condensed notes, not the verbatim text above.</div>
+  </div>`;
+}
+function copyScaffold(key){const sc=SCAF[key];if(!sc)return;
+  let t=(sc.name||'')+(sc.sec?(' — '+sc.sec):'')+(sc.count?(' ('+sc.count.n+')'):'')+'\n';
+  if(sc.hook)t+='Hook: '+sc.hook+'\n';
+  sc.items.forEach(it=>{t+=`(${it.k}) ${it.txt}`+(it.eg?` — e.g. ${it.eg}`:'')+'\n';});
+  if(sc.note)t+='Note: '+sc.note+'\n';
+  navigator.clipboard&&navigator.clipboard.writeText(t.trim());toast('Scaffold copied');
 }
 function toggleSave(aid,s){let sv=ls.get('saved',[])||[];const k=x=>x.a===aid&&x.id===s.id;
   if(sv.some(k)){sv=sv.filter(x=>!k(x));toast('Removed')}else{sv.unshift({a:aid,id:s.id,num:s.num,disp:ud(s),t:s.t});toast('Saved')}
@@ -384,7 +411,10 @@ function renderSidebar(){
         return `<div class="sb-dom">${esc(d)}</div>`+ts.map((t,j)=>`<a class="sb-topic" href="#/topic/${t.id}"><span class="dot" style="background:${PAL10[(i*3+j)%10]}"></span><span class="nm">${esc(t.name)}</span></a>`).join('')}).join('');
     } else {
       const byL={};DEFS.forEach(d=>{const L=(d.t[0]||'#').toUpperCase();(byL[L]=byL[L]||[]).push(d)});
-      body.innerHTML=Object.keys(byL).sort().map(L=>`<div class="sb-letter">${L}</div>`+byL[L].slice().sort((a,b)=>a.t.localeCompare(b.t)).map(d=>`<a class="sb-term" href="#/s/${d.a}/${d.s}"><span>${esc(d.t)}</span><span class="src">${esc(SRC[d.a].abbr)} ${esc(d.num)}</span></a>`).join('')).join('');
+      const letters=Object.keys(byL).sort();
+      const az=`<div class="sb-az">`+letters.map(L=>`<button class="azl" data-l="${L}">${L}</button>`).join('')+`</div>`;
+      const list=letters.map(L=>`<div class="sb-letter" id="sbL-${L}">${L}</div>`+byL[L].slice().sort((a,b)=>a.t.localeCompare(b.t)).map(d=>`<a class="sb-term" href="#/s/${d.a}/${d.s}"><span class="tdot" style="background:${hue(d.a)}"></span><span class="ttx">${esc(d.t)}</span><span class="src">${esc(SRC[d.a].abbr)} ${esc(d.num)}</span></a>`).join('')).join('');
+      body.innerHTML=az+list;
     }
   }
   if(sbMode==='acts'){ $$('#sbBody .sb-sub').forEach(e=>e.classList.toggle('cur',e.dataset.sid===curSec)); }
