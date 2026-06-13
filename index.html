@@ -20,18 +20,27 @@
 <div id="app">
   <div class="dockwrap"><nav class="dock" id="dock">
     <button class="di" data-route="/home"><span class="ic" data-i="home"></span><span class="lb">Home</span></button>
-    <button class="di" data-route="/browse"><span class="ic" data-i="browse"></span><span class="lb">Browse</span></button>
+    <button class="di di-rail" data-mode="acts" data-route="/browse"><span class="ic" data-i="book"></span><span class="lb">Acts</span></button>
+    <button class="di di-mob" data-route="/browse"><span class="ic" data-i="browse"></span><span class="lb">Browse</span></button>
+    <button class="di" data-mode="offences" data-route="/offences"><span class="ic" data-i="scale"></span><span class="lb">Offences</span></button>
+    <button class="di di-rail" data-mode="topics" data-route="/topics"><span class="ic" data-i="browse"></span><span class="lb">Topics</span></button>
+    <button class="di di-rail" data-mode="terms" data-route="/defs"><span class="ic" data-i="list"></span><span class="lb">Terms</span></button>
     <button class="di" data-route="/search"><span class="ic" data-i="search"></span><span class="lb">Search</span></button>
     <button class="di" data-route="/study"><span class="ic" data-i="study"></span><span class="lb">Study</span></button>
     <button class="di" data-route="/saved"><span class="ic" data-i="saved"></span><span class="lb">Saved</span></button>
   </nav></div>
 
   <aside class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <span class="sb-title" id="sbTitle">Acts &amp; Codes</span>
+      <button class="sb-collapse" id="sbCollapse" aria-label="Collapse panel"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/><path d="M4 5v14"/></svg></button>
+    </div>
     <button class="sb-srch" data-route="/search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> Search… <span class="k">⌘K</span></button>
     <div class="sb-switch">
-      <button id="sw-acts" data-mode="acts">Acts</button>
-      <button id="sw-topics" data-mode="topics">Topics</button>
-      <button id="sw-terms" data-mode="terms">Terms</button>
+      <button data-mode="acts">Acts</button>
+      <button data-mode="offences">Offences</button>
+      <button data-mode="topics">Topics</button>
+      <button data-mode="terms">Terms</button>
     </div>
     <div id="sbBody"></div>
     <div class="sb-more">
