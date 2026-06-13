@@ -14,7 +14,7 @@ const DATA='./data/';
 
 let REG, SRC={}, PAL10=[], SEARCH=[], DEFS=[], TOPICS={doms:[],topics:[]}, STUDY=null, FTEXT=null;
 const actCache={};
-let curAct=null, curSec=null, sbMode=ls.get('sbMode','acts'), sbKey='', loadingFT=false;
+let curAct=null, curSec=null, sbMode=ls.get('sbMode','acts'), sbKey='', loadingFT=false, curPrev=null, curNext=null;
 
 /* ---------- icons ---------- */
 const SVG={
@@ -86,10 +86,16 @@ function paintChrome(){
   $('#searchBtn').onclick=()=>navigate('/search'); $('#sizeBtn').onclick=cycleSize; $('#themeBtn').onclick=toggleTheme;
   applySize();
   addEventListener('keydown',e=>{
+    const typing=/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName||'')||e.target.isContentEditable;
     if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();navigate('/search')}
-    else if(e.key==='Escape'){$('#pop').classList.remove('on');closeDrawer()}
+    else if(e.key==='Escape'){hideTerm();closeDrawer()}
+    else if(typing){return}
+    else if(e.key==='/'){e.preventDefault();navigate('/search')}
+    else if(e.key==='['&&curPrev){e.preventDefault();navigate(curPrev)}
+    else if(e.key===']'&&curNext){e.preventDefault();navigate(curNext)}
+    else if(e.key.toLowerCase()==='t'){toggleTheme()}
   });
-  document.addEventListener('click',e=>{if(!e.target.closest('dfn')&&!e.target.closest('#pop'))$('#pop').classList.remove('on')});
+  document.addEventListener('click',e=>{if(!e.target.closest('dfn')&&!e.target.closest('#pop'))hideTerm();});
   renderSidebar();
 }
 function navigate(h){ if(location.hash==='#'+h){route();} else location.hash='#'+h; }
@@ -200,11 +206,14 @@ async function openSec(aid,sid){
   const topc=inT.length?`<div class="cite-h">Appears in topics</div><div class="cwrap">`+inT.map(t=>`<a class="chip2" href="#/topic/${t.id}">${esc(t.name)}</a>`).join('')+`</div>`:'';
   const marksOn=ls.get('marks',true);
   const saved=(ls.get('saved',[])||[]).some(x=>x.a===aid&&x.id===sid);
+  curPrev=prev?('/s/'+aid+'/'+prev.id):null; curNext=next?('/s/'+aid+'/'+next.id):null;
+  const pager=(prev||next)?`<div class="pager">${prev?`<a class="pgbtn" href="#/s/${aid}/${prev.id}"><span class="dir">‹ Previous</span><span class="pnm">${esc(ud(prev))} · ${esc((prev.t||'').slice(0,42))}</span></a>`:'<span></span>'}${next?`<a class="pgbtn next" href="#/s/${aid}/${next.id}"><span class="dir">Next ›</span><span class="pnm">${esc(ud(next))} · ${esc((next.t||'').slice(0,42))}</span></a>`:'<span></span>'}</div>`:'';
   $('#main').innerHTML=`
     <a class="r-back fade" href="#/a/${aid}">${ic('back','currentColor')} ${esc(a.short)}</a>
     <div class="r-card fade"><div class="r-strip" style="--h:${a.hue};--hi:${a.ink}"></div>
       <div class="r-head" style="--h:${a.hue};--hi:${a.ink}"><span class="snum">${esc(ud(s))}</span><div><div class="act"><i></i>${esc(a.name)}</div><div class="stt">${esc(s.t)}</div></div></div>
       <div class="r-body" style="--h:${a.hue};--hi:${a.ink}">${alt}<div class="statute" id="statBody">${marksOn?markTerms(s.h,aid):s.h}</div>${chips}${topc}</div></div>
+    ${pager}
     <div class="r-actions">
       <button class="ract" id="saveBtn">${ic('heart','currentColor')} ${saved?'Saved':'Save'}</button>
       <button class="ract" id="copyBtn">${ic('copy','currentColor')} Copy</button>
@@ -213,7 +222,10 @@ async function openSec(aid,sid){
 }
 function wireReader(aid,s){
   $$('#statBody .xref').forEach(x=>{const t=actCache[aid]._byId[x.dataset.s]; if(t)x.onclick=()=>navigate('/s/'+aid+'/'+t.id); else x.onclick=()=>toast('Cross-reference outside the sample');});
-  $$('#statBody dfn').forEach(df=>df.onclick=e=>{const t=DEFS.find(x=>x.a===aid&&x.t.toLowerCase()===df.dataset.term);if(t)showPop(e,t)});
+  $$('#statBody dfn').forEach(df=>{const d=DEFS.find(x=>x.a===aid&&x.t.toLowerCase()===df.dataset.term); if(!d){df.style.borderBottom='none';return;}
+    if(FINE){ df.addEventListener('mouseenter',()=>{clearTimeout(tipT);showTerm(df,d)}); df.addEventListener('mouseleave',hideTermSoon); df.addEventListener('click',ev=>{ev.preventDefault();hideTerm();navigate('/s/'+d.a+'/'+d.s)}); }
+    else { df.addEventListener('click',ev=>{ev.stopPropagation();showTerm(df,d)}); }
+  });
   $('#saveBtn').onclick=()=>{toggleSave(aid,s);};
   $('#copyBtn').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(`${SRC[aid].name} ${ud(s)} — ${s.t}\n\n${s.b}`);toast('Verbatim copied')};
   $('#markBtn').onclick=()=>{ls.set('marks',!ls.get('marks',true));route()};
@@ -238,11 +250,22 @@ function markTerms(html,aid){
     else if(c.nodeType===1&&!['DFN','A'].includes(c.tagName)&&!c.classList.contains('mk'))walk(c);}};
   walk(tmp); return tmp.innerHTML;
 }
-function showPop(e,d){const p=$('#pop');
-  p.innerHTML=`<div class="pt">${esc(d.t)}</div><div class="ps">${esc(SRC[d.a].abbr)} s ${esc(d.num)}${d.sc?(' · '+esc(d.sc)):''}</div><div class="pd">${esc(d.d)}</div><div class="pj" id="popjump">Open s ${esc(d.num)} →</div>`;
-  const r=e.target.getBoundingClientRect();p.style.left=Math.min(r.left,innerWidth-316)+'px';p.style.top=Math.min(r.bottom+8,innerHeight-230)+'px';p.classList.add('on');
-  $('#popjump').onclick=()=>{p.classList.remove('on');navigate('/s/'+d.a+'/'+d.s)};
+let tipT, FINE = matchMedia('(hover:hover) and (pointer:fine)').matches;
+function showTerm(el,d){
+  const p=$('#pop');
+  p.innerHTML=`<div class="grab"></div><div class="pt">${esc(d.t)}</div><div class="ps">${esc(SRC[d.a].abbr)} s ${esc(d.num)}${d.sc?(' · '+esc(d.sc)):''}</div><div class="pd">${esc(d.d)}</div><div class="pj" id="popjump">Open s ${esc(d.num)} →</div>`;
+  $('#popjump').onclick=ev=>{ev.stopPropagation();hideTerm();navigate('/s/'+d.a+'/'+d.s)};
+  if(!FINE){ p.classList.add('sheet'); p.classList.add('on'); termScrim(true); return; }
+  p.classList.remove('sheet'); p.style.left='-9999px'; p.style.top='0'; p.classList.add('on');
+  const pr=p.getBoundingClientRect(), r=el.getBoundingClientRect(), gap=8;
+  let top=r.bottom+gap; if(top+pr.height>innerHeight-8) top=Math.max(8, r.top-gap-pr.height);
+  const left=Math.min(Math.max(8, r.left), innerWidth-pr.width-8);
+  p.style.left=left+'px'; p.style.top=top+'px';
+  p.onmouseenter=()=>clearTimeout(tipT); p.onmouseleave=hideTermSoon;
 }
+function hideTermSoon(){clearTimeout(tipT);tipT=setTimeout(hideTerm,150)}
+function hideTerm(){clearTimeout(tipT);const p=$('#pop');p.classList.remove('on');p.classList.remove('sheet');termScrim(false)}
+function termScrim(on){let s=$('#termScrim');if(!s){s=document.createElement('div');s.id='termScrim';s.className='term-scrim';s.addEventListener('click',hideTerm);document.body.appendChild(s)}s.classList.toggle('on',on)}
 
 /* ---------- TOPIC ---------- */
 function renderTopicPage(id){
@@ -256,19 +279,30 @@ function renderTopicPage(id){
 
 /* ---------- SEARCH ---------- */
 let searchT;
+function pushSearch(q){q=(q||'').trim();if(q.length<2)return;let r=ls.get('searches',[])||[];r=r.filter(x=>x.toLowerCase()!==q.toLowerCase());r.unshift(q);ls.set('searches',r.slice(0,8));}
+function hl(text,q){text=text==null?'':String(text);if(!q)return esc(text);const i=text.toLowerCase().indexOf(q);if(i<0)return esc(text);return esc(text.slice(0,i))+'<mark>'+esc(text.slice(i,i+q.length))+'</mark>'+esc(text.slice(i+q.length));}
+function snippet(e,q){let body=(actCache[e.a]&&actCache[e.a]._byId[e.id]&&actCache[e.a]._byId[e.id].b)||(FTEXT&&FTEXT[e.a+'|'+e.id])||'';const low=body.toLowerCase();const i=low.indexOf(q);if(i<0)return '';const s=Math.max(0,i-46),en=Math.min(body.length,i+q.length+78);return (s>0?'… ':'')+esc(body.slice(s,i))+'<mark>'+esc(body.slice(i,i+q.length))+'</mark>'+esc(body.slice(i+q.length,en))+(en<body.length?' …':'');}
 function renderSearch(q){
   $('#main').innerHTML=`<h1 class="h-title fade" style="margin-bottom:8px">Search</h1>
-    <div class="sfield fade" style="height:54px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="sin" placeholder="Section number, words in a provision, or a term…" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1;border:0;outline:0;background:none;font-size:15.5px;color:var(--ink);font-family:inherit"></div>
-    <div class="s-recent fade"><span style="font-size:12px;color:var(--ink-4);align-self:center;margin-right:2px">Try</span>
-      <a class="s-rchip" href="#/search/279">279</a><a class="s-rchip" href="#/search/murder">murder</a><a class="s-rchip" href="#/search/grievous">grievous bodily harm</a><a class="s-rchip" href="#/search/deemed%20supply">deemed supply</a></div>
+    <div class="sfield fade" style="height:54px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="sin" placeholder="Section number, words in a provision, or a term…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" style="flex:1;border:0;outline:0;background:none;font-size:15.5px;color:var(--ink);font-family:inherit"></div>
     <div class="s-res" id="sres"></div>`;
-  const i=$('#sin'); i.value=q||''; i.addEventListener('input',()=>{clearTimeout(searchT);searchT=setTimeout(()=>runSearch(i.value),120)});
+  const i=$('#sin'); i.value=q||''; i.addEventListener('input',()=>{clearTimeout(searchT);searchT=setTimeout(()=>runSearch(i.value),110)});
+  $('#sres').addEventListener('click',e=>{
+    const x=e.target.closest('.s-x'); if(x){e.preventDefault();e.stopPropagation();ls.set('searches',(ls.get('searches',[])||[]).filter(v=>v!==x.dataset.q));runSearch(i.value);return;}
+    const c=e.target.closest('.s-clear'); if(c){e.preventDefault();ls.set('searches',[]);runSearch(i.value);return;}
+    if(e.target.closest('a.s-item')){const v=i.value.trim();if(v.length>=2)pushSearch(v);}
+  });
   i.focus(); runSearch(q||'');
   if(!FTEXT && !loadingFT){ loadingFT=true; jget('ftext.json').then(d=>{FTEXT=d;loadingFT=false; if($('#sin'))runSearch($('#sin').value)}).catch(()=>loadingFT=false); }
 }
 function runSearch(q){
   q=(q||'').trim().toLowerCase(); const el=$('#sres'); if(!el)return;
-  if(!q){el.innerHTML=`<p class="empty">Start typing — results appear instantly, fully offline.</p>`;return}
+  if(!q){
+    const rec=ls.get('searches',[])||[]; let h='';
+    if(rec.length){ h+=`<div class="s-grp s-grp-row">Recent <button class="s-clear">Clear</button></div>`+rec.map(r=>`<div class="s-rec"><a class="s-recline" href="#/search/${encodeURIComponent(r)}"><svg class="rico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>${esc(r)}</a><button class="s-x" data-q="${esc(r)}" aria-label="Remove">✕</button></div>`).join(''); }
+    h+=`<div class="s-grp">Try</div><div class="s-recent" style="margin-top:0"><a class="s-rchip" href="#/search/279">s 279</a><a class="s-rchip" href="#/search/murder">murder</a><a class="s-rchip" href="#/search/grievous">grievous bodily harm</a><a class="s-rchip" href="#/search/deemed%20supply">deemed supply</a><a class="s-rchip" href="#/search/search%20warrant">search warrant</a></div>`;
+    el.innerHTML=h; return;
+  }
   const isNum=/^\d/.test(q.replace(/^s\.?\s*/,'')); const qn=q.replace(/^s\.?\s*/,'');
   const titleHit=[], seen=new Set();
   for(const e of SEARCH){const t=(e.num+' '+e.t).toLowerCase();
@@ -277,14 +311,15 @@ function runSearch(q){
   const tops=TOPICS.topics.filter(t=>t.name.toLowerCase().includes(q)).slice(0,8);
   const srcs=REG.sources.filter(s=>(s.name+' '+s.abbr).toLowerCase().includes(q)).slice(0,6);
   let bodyHit=[];
-  if(FTEXT && q.length>=2){ for(const e of SEARCH){const k=e.a+'|'+e.id; if(seen.has(k))continue; const b=FTEXT[k]; if(b&&b.includes(q)){bodyHit.push(e); if(bodyHit.length>=40)break;}} }
-  const secRow=e=>`<a class="s-item" href="#/s/${e.a}/${e.id}"><span class="sn" style="background:${ink(e.a)}">${esc((e.u==='s'?'s ':'')+e.num)}</span><span class="stx">${esc(e.t)}</span><span class="smeta">${esc(SRC[e.a].abbr)}</span></a>`;
+  if(FTEXT && q.length>=2){ for(const e of SEARCH){const k=e.a+'|'+e.id; if(seen.has(k))continue; const b=FTEXT[k]; if(b&&b.includes(q)){bodyHit.push(e); if(bodyHit.length>=30)break;}} }
+  const secRow=e=>`<a class="s-item" href="#/s/${e.a}/${e.id}"><span class="sn" style="background:${ink(e.a)}">${esc((e.u==='s'?'s ':'')+e.num)}</span><span class="stx">${hl(e.t,q)}</span><span class="smeta">${esc(SRC[e.a].abbr)}</span></a>`;
+  const ftRow=e=>`<a class="s-item ft" href="#/s/${e.a}/${e.id}"><span class="sn" style="background:${ink(e.a)}">${esc((e.u==='s'?'s ':'')+e.num)}</span><span class="ftcol"><span class="stx">${hl(e.t,q)}</span><span class="snip">${snippet(e,q)}</span></span><span class="smeta">${esc(SRC[e.a].abbr)}</span></a>`;
   let html='';
   if(titleHit.length){html+=`<div class="s-grp">Sections</div>`+titleHit.slice(0,12).map(secRow).join('')}
-  if(srcs.length){html+=`<div class="s-grp">Acts &amp; sources</div>`+srcs.map(s=>`<a class="s-item" href="#/a/${s.id}"><span class="sn" style="background:${s.hue}"> </span><span class="stx">${esc(s.name)}</span><span class="smeta">${esc(s.abbr)}</span></a>`).join('')}
-  if(defs.length){html+=`<div class="s-grp">Definitions</div>`+defs.map(d=>`<a class="s-item" href="#/s/${d.a}/${d.s}"><span class="sn" style="background:var(--ink-3)">def</span><span class="stx">${esc(d.t)}</span><span class="smeta">${esc(SRC[d.a].abbr)} ${esc(d.num)}</span></a>`).join('')}
-  if(tops.length){html+=`<div class="s-grp">Topics</div>`+tops.map(t=>`<a class="s-item" href="#/topic/${t.id}"><span class="sn" style="background:#94a3b8">topic</span><span class="stx">${esc(t.name)}</span></a>`).join('')}
-  if(bodyHit.length){html+=`<div class="s-grp">In the provision text</div>`+bodyHit.slice(0,14).map(secRow).join('')}
+  if(srcs.length){html+=`<div class="s-grp">Acts &amp; sources</div>`+srcs.map(s=>`<a class="s-item" href="#/a/${s.id}"><span class="sn" style="background:${s.hue}"> </span><span class="stx">${hl(s.name,q)}</span><span class="smeta">${esc(s.abbr)}</span></a>`).join('')}
+  if(defs.length){html+=`<div class="s-grp">Definitions</div>`+defs.map(d=>`<a class="s-item" href="#/s/${d.a}/${d.s}"><span class="sn" style="background:var(--ink-3)">def</span><span class="stx">${hl(d.t,q)}</span><span class="smeta">${esc(SRC[d.a].abbr)} ${esc(d.num)}</span></a>`).join('')}
+  if(tops.length){html+=`<div class="s-grp">Topics</div>`+tops.map(t=>`<a class="s-item" href="#/topic/${t.id}"><span class="sn" style="background:#94a3b8">topic</span><span class="stx">${hl(t.name,q)}</span></a>`).join('')}
+  if(bodyHit.length){html+=`<div class="s-grp">In the provision text</div>`+bodyHit.slice(0,14).map(ftRow).join('')}
   else if(!FTEXT){html+=`<div class="s-grp" style="color:var(--ink-4)"><span class="spin" style="width:11px;height:11px"></span> loading full-text…</div>`}
   el.innerHTML=html||`<p class="empty">No matches for “${esc(q)}”.</p>`;
 }
@@ -358,8 +393,8 @@ function sbSwitch(m){sbMode=m;ls.set('sbMode',m);renderSidebar()}
 
 /* ---------- drawer / theme / size ---------- */
 function menuTap(){ innerWidth<861?openDrawer():document.body.classList.toggle('sb-collapsed'); }
-function openDrawer(){$('#sidebar').classList.add('open');$('#sbScrim').classList.add('on')}
-function closeDrawer(){const s=$('#sidebar');if(s)s.classList.remove('open');const sc=$('#sbScrim');if(sc)sc.classList.remove('on')}
+function openDrawer(){$('#sidebar').classList.add('open');$('#sbScrim').classList.add('on');document.body.classList.add('drawer-open')}
+function closeDrawer(){const s=$('#sidebar');if(s)s.classList.remove('open');const sc=$('#sbScrim');if(sc)sc.classList.remove('on');document.body.classList.remove('drawer-open')}
 function toggleTheme(){const r=document.documentElement;r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';ls.set('theme',r.dataset.theme)}
 function applySize(){const z=ls.get('size',1);document.documentElement.style.setProperty('--rsz',z);$$('.page')&&($('#main').style.fontSize=z+'em')}
 function cycleSize(){let z=ls.get('size',1);z=z>=1.18?.9:Math.round((z+.08)*100)/100;ls.set('size',z);$('#main').style.fontSize=z+'em';toast('Text size '+Math.round(z*100)+'%')}
