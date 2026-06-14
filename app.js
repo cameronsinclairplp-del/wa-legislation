@@ -140,7 +140,7 @@ function route(){
   if(seg==='browse') return renderBrowse('acts');
   if(seg==='offences')return renderOffences(p[1],p[2]);
   if(seg==='search') return renderSearch(decodeURIComponent(p.slice(1).join('/')||''));
-  if(seg==='study')  return renderStudy();
+  if(seg==='study')  return p[1]==='drill'?renderDrill():p[1]==='quiz'?renderQuiz():p[1]==='scen'?renderScenarios():renderStudy();
   if(seg==='saved')  return renderSaved();
   if(seg==='defs')   return renderDefs();
   if(seg==='drugs')  return renderDrugMatrix();
@@ -154,7 +154,7 @@ function renderHome(){
   const tops=TOPICS.topics.slice(0,10).map((t,i)=>{const hx=PAL10[i%10];
     return `<a class="tile" href="#/topic/${t.id}" style="background:${tileBg(hx)};--tsh:color-mix(in srgb,${hx} 55%,transparent)"><span class="chip">${ic(topicIcon(t))}</span><span class="lb">${esc(t.name)}</span></a>`}).join('');
   const ac=acts().slice(0,10).map(a=>`<a class="tile" href="#/a/${a.id}" style="background:${tileBg(a.hue)};--tsh:color-mix(in srgb,${a.hue} 55%,transparent)"><span class="chip"><span class="mono">${esc(a.abbr)}</span></span><span class="lb">${esc(a.short)}</span></a>`).join('');
-  const study=[['Recall drill','108 cards','activity','#797efe','/study'],['Section quiz','name it','alert','#fc8f66','/study'],['Scenarios','37 worked','file','#3dcfae','/study'],['Drug matrix','MDA','droplet','#fec846','/drugs']]
+  const study=[['Recall drill','weakest-first','activity','#797efe','/study/drill'],['Section quiz','test yourself','alert','#fc8f66','/study/quiz'],['Scenarios','worked','file','#3dcfae','/study/scen'],['Drug matrix','MDA','droplet','#fec846','/drugs']]
     .map(([n,d,i,h,r])=>`<a class="tile" href="#${r}" style="background:${tileBg(h)};--tsh:color-mix(in srgb,${h} 55%,transparent)"><span class="chip">${ic(i)}</span><span class="lb">${n}<small>${d}</small></span></a>`).join('');
   const last=ls.get('last',null);
   const cont=last?`<a class="cont" href="#/s/${last.a}/${last.id}" style="background:${tileBg(hue(last.a))};--tsh:color-mix(in srgb,${hue(last.a)} 55%,transparent)"><span class="big">${esc(last.num)}</span><div class="meta"><div class="tag">${esc(SRC[last.a].short)} · ${esc(last.disp)}</div><div class="tt">${esc(last.t)}</div><div class="ex">${esc(last.p||'')}</div></div><span class="play">${ic('play')}</span></a>`
@@ -410,12 +410,139 @@ function runSearch(q){
 }
 
 /* ---------- STUDY / SAVED / RECENTS / DEFS / DRUGS ---------- */
-function studyTiles(full){return [['Recall drill',full?'108 scaffold cards · weakest-first':'108 cards','activity','#797efe','soon'],['Section quiz',full?'name the section':'name it','alert','#fc8f66','soon'],['Scenarios',full?'37 worked examples':'37 worked','file','#3dcfae','scen'],['Drug matrix','MDA quantities','droplet','#fec846','/drugs']]
-  .map(([n,d,i,h,a])=>`<a class="tile${a==='soon'?' tile-soon':''}" ${a==='/drugs'?`href="#/drugs"`:`data-act="${a}"`} style="background:${tileBg(h)};--tsh:color-mix(in srgb,${h} 55%,transparent)">${a==='soon'?`<span class="soon">Soon</span>`:''}<span class="chip">${ic(i)}</span><span class="lb">${n}<small>${d}</small></span></a>`).join('')}
+function studyTiles(full){return [['Recall drill',full?'flip cards · weakest-first':'flip cards','activity','#797efe','/study/drill'],['Section quiz',full?'multiple choice or type':'test yourself','alert','#fc8f66','/study/quiz'],['Scenarios',full?'worked examples':'worked','file','#3dcfae','/study/scen'],['Drug matrix','MDA quantities','droplet','#fec846','/drugs']]
+  .map(([n,d,i,h,a])=>`<a class="tile" href="#${a}" style="background:${tileBg(h)};--tsh:color-mix(in srgb,${h} 55%,transparent)"><span class="chip">${ic(i)}</span><span class="lb">${n}<small>${d}</small></span></a>`).join('')}
 function renderStudy(){
+  const n=Object.keys(SCAF).length;
   $('#main').innerHTML=`<h1 class="h-title fade">Study</h1><div class="tilegrid fade">${studyTiles(true)}</div>
-   <p style="color:var(--ink-4);font-size:13px;margin-top:20px">Recall drill and Section quiz are coming soon. You can already drill any section from its <strong>Memorise</strong> card. Every string is built from verbatim source — no invented law.</p>`;
-  $$('#main .tile[data-act]').forEach(t=>t.onclick=()=>{t.dataset.act==='scen'?renderScenarios():toast('Coming soon — drill any section now from its Memorise card')});
+   <p style="color:var(--ink-4);font-size:13px;margin-top:20px">Active recall over ${n} recall scaffolds — every string built from verbatim source, no invented law. Your weakest cards surface first.</p>`;
+}
+function studyHead(title){return `<a class="r-back fade" href="#/study">${ic('back','currentColor')} Study</a><h1 class="h-title" style="margin:6px 0 14px">${esc(title)}</h1>`;}
+const _shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const _pick=(a,n)=>_shuf(a).slice(0,n);
+function scaffoldKeys(){return Object.keys(SCAF).filter(k=>SCAF[k]&&SCAF[k].items&&SCAF[k].items.length);}
+
+/* ===== RECALL DRILL — active recall over scaffold cards, weakest-first ===== */
+let drillSess=null;
+function weakestFirst(keys){const sc=ls.get('drillScore',{})||{};
+  return keys.slice().sort((a,b)=>{const A=sc[a],B=sc[b];const ap=A?1:0,bp=B?1:0;
+    if(ap!==bp)return ap-bp;                       // never-seen first
+    if(A&&B&&A.s!==B.s)return A.s-B.s;              // then lowest score (weakest)
+    return Math.random()-.5;});}
+function renderDrill(){
+  const keys=scaffoldKeys();
+  if(!keys.length){$('#main').innerHTML=studyHead('Recall drill')+`<p class="empty">No scaffolds loaded.</p>`;return;}
+  const q=weakestFirst(keys).slice(0,Math.min(15,keys.length));
+  drillSess={queue:q,i:0,size:q.length,res:{got:0,hard:0,miss:0}};
+  document.title='Recall drill · WA Legislation';
+  drillStep();
+}
+function drillStep(){
+  const s=drillSess; if(!s)return; if(s.i>=s.queue.length)return drillDone();
+  const key=s.queue[s.i], sc=SCAF[key], a=key.split('|')[0], id=key.split('|')[1];
+  const cnt=sc.count&&sc.count.n, unit=/limb/i.test((sc.count&&sc.count.q)||'')?'limbs':'elements';
+  const prompt=cnt?`Recall the ${cnt} ${unit}`:'Recall the elements';
+  const items=sc.items.map((it,idx)=>`<li class="dmi" data-i="${idx}"><span class="dmk">${esc(it.k||'•')}</span><span class="dmb"><span class="dmt">${esc(it.txt)}</span>${it.eg?`<span class="dme">${esc(it.eg)}</span>`:''}</span></li>`).join('');
+  $('#main').innerHTML=studyHead('Recall drill')+`
+  <div class="qprog"><span style="width:${Math.round(s.i/s.size*100)}%"></span></div>
+  <div class="qcount">${s.i+1} / ${s.size}</div>
+  <div class="dcard fade" style="--h:${hue(a)};--hi:${ink(a)}">
+    <div class="r-strip"></div>
+    <div class="dbody">
+      <div class="dact">${esc(SRC[a].abbr)} ${esc(sc.sec||ud({u:'s',num:id}))}</div>
+      <h2 class="dname">${esc(sc.name)}</h2><p class="dprompt">${prompt}</p>
+      <ul class="dlist drillblur" id="dlist">${items}</ul>
+      ${sc.note?`<p class="dnote" hidden>${esc(sc.note)}</p>`:''}
+    </div>
+    <div class="dactions" id="dreveal"><button class="qbtn primary" id="dRevealBtn">Reveal answer</button><a class="qbtn ghost" href="#/s/${a}/${id}">Open section</a></div>
+    <div class="drate" id="drate" hidden><button class="rate miss" data-r="miss">Missed</button><button class="rate hard" data-r="hard">Hard</button><button class="rate got" data-r="got">Got it</button></div>
+  </div>`;
+  $('#dRevealBtn').onclick=()=>{$('#dlist').classList.remove('drillblur');const nt=$('.dnote');if(nt)nt.hidden=false;$('#dreveal').hidden=true;$('#drate').hidden=false;};
+  $$('#dlist .dmi').forEach(li=>li.onclick=()=>{if($('#dlist').classList.contains('drillblur'))li.classList.toggle('peek');});
+  $('#drate').onclick=e=>{const b=e.target.closest('.rate');if(b)rateDrill(key,b.dataset.r);};
+}
+function rateDrill(key,r){
+  const sc=ls.get('drillScore',{})||{}; const cur=sc[key]||{s:0,n:0};
+  cur.s=Math.max(-6,Math.min(10,(cur.s||0)+(r==='got'?2:r==='hard'?0:-2))); cur.n=(cur.n||0)+1; cur.t=Date.now();
+  sc[key]=cur; ls.set('drillScore',sc);
+  const s=drillSess; s.res[r]++;
+  if(r==='miss'){s.queue.splice(Math.min(s.i+3,s.queue.length+1),0,key);s.size=s.queue.length;}
+  else if(r==='hard'){s.queue.push(key);s.size=s.queue.length;}
+  s.i++; drillStep();
+}
+function drillDone(){
+  const s=drillSess,r=s.res;
+  $('#main').innerHTML=studyHead('Recall drill')+`<div class="qdone fade"><div class="qbig">${r.got}<span>/${s.i}</span></div><p class="qsum">Got it ${r.got} · Hard ${r.hard} · Missed ${r.miss}</p><div class="qend"><button class="qbtn primary" id="qAgain">Drill again</button><a class="qbtn ghost" href="#/study">Done</a></div></div>`;
+  $('#qAgain').onclick=renderDrill; drillSess=null;
+}
+
+/* ===== SECTION QUIZ — MCQ or type-in, generated from scaffolds + sections ===== */
+let quizSess=null;
+function quizPool(){
+  // Prefer the named-offence library (clean offence titles) so questions read correctly;
+  // attach scaffold elements/count only where a scaffold exists for that section.
+  const seen=new Set();
+  const off=(OFF.offences||[]).filter(o=>SRC[o.a]).map(o=>{const k=o.a+'|'+o.id;const sc=SCAF[k];
+    return{key:k,a:o.a,id:o.id,name:o.t,sec:o.num?('s '+o.num):((sc&&sc.sec)||''),items:sc&&sc.items,count:sc&&sc.count};})
+    .filter(c=>c.name&&c.sec&&!seen.has(c.key)&&seen.add(c.key));
+  if(off.length>=8)return off;
+  return scaffoldKeys().map(k=>{const[a,id]=k.split('|');const sc=SCAF[k];return{key:k,a,id,name:sc.name,sec:sc.sec||('s '+id.replace(/^[a-z]+-/,'')),items:sc.items,count:sc.count};});
+}
+function secLabel(c){return SRC[c.a].abbr+' '+c.sec;}
+function genQuestion(pool,mode){
+  const c=pool[Math.floor(Math.random()*pool.length)];
+  const sib=pool.filter(x=>x.a===c.a&&x.key!==c.key);
+  const others=sib.length>=3?sib:pool.filter(x=>x.key!==c.key);
+  const types=mode==='type'?['nameOffence','nameSection','count']:['nameOffence','nameSection','count','pickElement'];
+  let type=types[Math.floor(Math.random()*types.length)];
+  if(type==='count'&&!(c.count&&c.count.n))type='nameOffence';
+  if(type==='pickElement'&&!(c.items&&c.items.length))type='nameOffence';
+  if(type==='nameOffence'){const ans=c.name;return{q:`What offence is ${secLabel(c)}?`,ans,opts:_shuf([ans,..._pick(others,3).map(x=>x.name)]),accept:[ans],a:c.a,id:c.id,type};}
+  if(type==='nameSection'){const ans=secLabel(c);const num=(c.sec||'').replace(/[^0-9A-Za-z]/g,'');return{q:`Which section is “${esc(c.name)}” (${SRC[c.a].abbr})?`,ans,opts:_shuf([ans,..._pick(others,3).map(secLabel)]),accept:[ans,c.sec,num].filter(Boolean),a:c.a,id:c.id,type};}
+  if(type==='count'){const n=String(c.count.n),unit=/limb/i.test((c.count.q)||'')?'limbs':'elements';const set=new Set([n]);let g=Math.max(1,+n-2)||1;while(set.size<4&&g<=+n+5){if(g!=+n)set.add(String(g));g++;}return{q:`How many ${unit} — ${esc(c.name)} (${secLabel(c)})?`,ans:n,opts:_shuf([...set]),accept:[n],a:c.a,id:c.id,type};}
+  const it=c.items[Math.floor(Math.random()*c.items.length)];
+  const distract=[...new Set(_shuf(others).slice(0,10).flatMap(x=>(x.items||[]).map(i=>i.txt)).filter(t=>t&&t!==it.txt))];
+  return{q:`Which is an element of “${esc(c.name)}” (${secLabel(c)})?`,ans:it.txt,opts:_shuf([it.txt,..._pick(distract,3)]),accept:[it.txt],a:c.a,id:c.id,type};
+}
+function renderQuiz(){
+  const pool=quizPool();
+  if(pool.length<4){$('#main').innerHTML=studyHead('Section quiz')+`<p class="empty">Not enough scaffolds to quiz yet.</p>`;return;}
+  quizSess={pool,mode:ls.get('quizMode','mc'),n:0,size:Math.min(12,pool.length),correct:0};
+  document.title='Section quiz · WA Legislation';
+  quizStep();
+}
+function quizStep(){
+  const s=quizSess; if(!s)return; if(s.n>=s.size)return quizDone();
+  s.answered=false; const Q=genQuestion(s.pool,s.mode); s.cur=Q;
+  const toggle=`<div class="qmode">${[['mc','Multiple choice'],['type','Type answer']].map(([m,l])=>`<button data-m="${m}" class="${s.mode===m?'on':''}">${l}</button>`).join('')}</div>`;
+  const body=s.mode==='mc'
+    ?`<div class="qopts" id="qopts">${Q.opts.map(o=>`<button class="qopt" data-o="${esc(o)}">${esc(o)}</button>`).join('')}</div>`
+    :`<form class="qform" id="qform"><input id="qin" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="Type your answer…" aria-label="Your answer"><button class="qbtn primary" type="submit">Check</button></form>`;
+  $('#main').innerHTML=studyHead('Section quiz')+`${toggle}
+   <div class="qprog"><span style="width:${Math.round(s.n/s.size*100)}%"></span></div>
+   <div class="qcount">${s.n+1} / ${s.size} · score ${s.correct}</div>
+   <div class="qcard fade" style="--h:${hue(Q.a)};--hi:${ink(Q.a)}"><p class="qq">${Q.q}</p>${body}<div class="qfb" id="qfb" hidden></div><div class="qnext" id="qnext" hidden><button class="qbtn primary" id="qNextBtn">Next</button></div></div>`;
+  $$('.qmode button').forEach(b=>b.onclick=()=>{if(b.dataset.m!==s.mode){s.mode=b.dataset.m;ls.set('quizMode',s.mode);quizStep();}});
+  if(s.mode==='mc'){$('#qopts').onclick=e=>{const b=e.target.closest('.qopt');if(b)quizAnswer(b.dataset.o,b);};}
+  else{$('#qform').onsubmit=e=>{e.preventDefault();quizAnswer($('#qin').value,null);};const qi=$('#qin');if(qi)qi.focus();}
+  const nb=$('#qNextBtn'); if(nb)nb.onclick=()=>{s.n++;quizStep();};
+}
+const _norm=s=>(s||'').toLowerCase().replace(/^s\.?\s*/,'').replace(/[^a-z0-9]/g,'');
+function quizAnswer(given,btn){
+  const s=quizSess,Q=s.cur; if(s.answered)return; s.answered=true;
+  const g=_norm(given);
+  const ok=Q.accept.some(x=>_norm(x)===g)||(Q.type!=='count'&&g.length>=4&&(_norm(Q.ans).includes(g)||g.includes(_norm(Q.ans))));
+  if(ok)s.correct++;
+  const fb=$('#qfb'); fb.hidden=false; fb.className='qfb '+(ok?'ok':'no');
+  fb.innerHTML=(ok?'✓ Correct':'✗ '+esc(Q.ans))+` · <a href="#/s/${Q.a}/${Q.id}">open section</a>`;
+  if(s.mode==='mc'){$$('.qopt').forEach(b=>{b.disabled=true;if(_norm(b.dataset.o)===_norm(Q.ans))b.classList.add('correct');else if(b===btn)b.classList.add('wrong');});}
+  else{const qi=$('#qin');if(qi)qi.disabled=true;const sb=$('#qform button');if(sb)sb.disabled=true;}
+  $('#qnext').hidden=false; const nb=$('#qNextBtn'); if(nb)nb.focus();
+}
+function quizDone(){
+  const s=quizSess,pct=Math.round(s.correct/s.size*100);
+  $('#main').innerHTML=studyHead('Section quiz')+`<div class="qdone fade"><div class="qbig">${s.correct}<span>/${s.size}</span></div><p class="qsum">${pct}% — ${pct>=80?'at the DTS competency bar (80%)':'keep drilling toward 80%'}</p><div class="qend"><button class="qbtn primary" id="qAgain">New quiz</button><a class="qbtn ghost" href="#/study">Done</a></div></div>`;
+  $('#qAgain').onclick=renderQuiz; quizSess=null;
 }
 function renderScenarios(){
   loadStudy().then(()=>{const sc=STUDY.scen;const keys=Object.keys(sc);
