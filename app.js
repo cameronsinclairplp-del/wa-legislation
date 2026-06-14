@@ -94,6 +94,7 @@ function paintChrome(){
   $$('.sb-switch button').forEach(b=>b.addEventListener('click',()=>sbSwitch(b.dataset.mode)));
   const sbc=$('#sbCollapse'); if(sbc)sbc.onclick=()=>{innerWidth<861?closeDrawer():document.body.classList.toggle('sb-collapsed')};
   $('#menuBtn').onclick=menuTap; $('#sbScrim').onclick=closeDrawer;
+  const sk=$('#skip'); if(sk)sk.onclick=()=>{const m=$('#main'); if(m){m.setAttribute('tabindex','-1'); m.focus(); m.scrollIntoView();}};
   $('#searchBtn').onclick=()=>navigate('/search'); $('#sizeBtn').onclick=cycleSize; $('#themeBtn').onclick=toggleTheme; paintThemeBtn();
   applySize();
   addEventListener('keydown',e=>{
@@ -114,6 +115,7 @@ function paintChrome(){
 function navigate(h){ if(location.hash==='#'+h){route();} else location.hash='#'+h; }
 /* which sidebar browse-mode each route segment implies */
 const SEG_MODE={browse:'acts',a:'acts',s:'acts',topics:'topics',topic:'topics',offences:'offences',offence:'offences',defs:'terms'};
+const PAGE_TITLE={browse:'Acts & codes',offences:'Offences',topics:'Topics',defs:'Defined terms',search:'Search',study:'Study',saved:'Saved',recents:'Recents',drugs:'Drug quantity matrix'};
 function route(){
   const h=(location.hash||'#/home').slice(1);
   const p=h.split('/').filter(Boolean);
@@ -128,6 +130,7 @@ function route(){
     const on=!!(onMode||onRoute); d.classList.toggle('on', on);
     if(on)d.setAttribute('aria-current','page'); else d.removeAttribute('aria-current');
   });
+  document.title = PAGE_TITLE[seg] ? PAGE_TITLE[seg]+' · WA Legislation' : 'WA Legislation';
   renderSidebar();
   const m=$('#main'); m.scrollTop=0; window.scrollTo(0,0);
   if(seg==='s')      return openSec(p[1],p[2]);
@@ -282,6 +285,7 @@ function wireStatBody(aid){
 }
 function wireReader(aid,s,key){
   wireStatBody(aid);
+  try{document.title=ud(s)+' '+s.t+' · WA Legislation';}catch(e){}
   $('#saveBtn').onclick=()=>{toggleSave(aid,s);};
   $('#copyBtn').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(`${SRC[aid].name} ${ud(s)} — ${s.t}\n\n${s.b}`);toast('Verbatim copied')};
   $('#markBtn').onclick=()=>{const on=!ls.get('marks',true);ls.set('marks',on);const sb=$('#statBody');if(sb){sb.innerHTML=on?markTerms(s.h,aid):s.h;wireStatBody(aid);}const mb=$('#markBtn');if(mb){mb.classList.toggle('on',on);mb.setAttribute('aria-pressed',on);}};
@@ -580,7 +584,8 @@ function closeDrawer(){const s=$('#sidebar'); if(s){s.classList.remove('open'); 
   const sc=$('#sbScrim'); if(sc)sc.classList.remove('on'); document.body.classList.remove('drawer-open');
   document.removeEventListener('keydown',trapTab); const mb=$('#menuBtn'); if(mb)mb.setAttribute('aria-expanded','false');
   if(_drawerOpen&&_lastFocus&&_lastFocus.focus){try{_lastFocus.focus()}catch(e){}} _drawerOpen=false; }
-function paintThemeBtn(){const dark=document.documentElement.dataset.theme==='dark';const b=$('#themeBtn');if(b){b.innerHTML=ic(dark?'sun':'moon','currentColor');const lab=dark?'Switch to light theme':'Switch to dark theme';b.setAttribute('aria-label',lab);b.title=lab;b.setAttribute('aria-pressed',String(dark));}}
+function paintThemeBtn(){const dark=document.documentElement.dataset.theme==='dark';const b=$('#themeBtn');if(b){b.innerHTML=ic(dark?'sun':'moon','currentColor');const lab=dark?'Switch to light theme':'Switch to dark theme';b.setAttribute('aria-label',lab);b.title=lab;b.setAttribute('aria-pressed',String(dark));}
+  let tc=document.querySelector('meta[name="theme-color"][data-dyn]'); if(!tc){tc=document.createElement('meta');tc.name='theme-color';tc.setAttribute('data-dyn','');document.head.appendChild(tc);} tc.content=dark?'#0c0d12':'#eef2f8';}
 function toggleTheme(){const r=document.documentElement;r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';ls.set('theme',r.dataset.theme);paintThemeBtn()}
 function applySize(){const z=ls.get('size',1);document.documentElement.style.setProperty('--rsz',z);$$('.page')&&($('#main').style.fontSize=z+'em')}
 function cycleSize(){let z=ls.get('size',1);z=z>=1.18?.9:Math.round((z+.08)*100)/100;ls.set('size',z);$('#main').style.fontSize=z+'em';toast('Text size '+Math.round(z*100)+'%')}

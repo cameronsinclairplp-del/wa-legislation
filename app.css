@@ -539,3 +539,18 @@ button,a{-webkit-tap-highlight-color:transparent}
 /* drug matrix — sticky drug-name column + zebra rows for cross-reading */
 .matwrap td:first-child,.matwrap th:first-child{position:sticky;left:0;z-index:1;background:var(--card);text-align:left;box-shadow:1px 0 0 0 var(--line)}
 .matwrap tr:nth-child(2n) td{background:color-mix(in srgb,var(--ink-3) 8%,var(--card))}
+
+/* ===================================================================
+   R6 — skip-to-content (keyboard) + print stylesheet (open-book revision)
+   =================================================================== */
+.skip{position:fixed;top:8px;left:8px;z-index:100;transform:translateY(-160%);background:var(--hi);color:#fff;padding:10px 16px;border-radius:11px;font-size:13.5px;font-weight:650;box-shadow:var(--sh-lg);transition:transform .15s}
+.skip:focus{transform:none;outline:2px solid #fff;outline-offset:2px}
+@media print{
+  .dockwrap,.sb-scrim,.appbar,.sidebar,.toast,.pop,.term-scrim,.loadbar,.skip,.r-back,.r-top .r-tools,.pager,.memo-act,.r-actions{display:none!important}
+  #app{max-width:none}.colmain{margin:0!important}.page{max-width:none;padding:0!important}
+  body{background:#fff!important}
+  [data-theme="dark"]{--paper:#fff;--card:#fff;--ink:#0a0a0a;--ink-2:#1a1a1a;--ink-3:#333;--ink-4:#555;--line:#ccc;--line-2:#ddd}
+  .r-card,.memo,.altbox,.r-band{box-shadow:none!important;break-inside:avoid}
+  .r-card{border:1px solid #bbb}
+  .statute{font-size:12pt;line-height:1.5}
+}
