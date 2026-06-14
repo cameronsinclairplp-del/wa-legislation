@@ -261,9 +261,9 @@ async function openSec(aid,sid){
     <div class="r-top fade">
       <a class="r-back" href="#/a/${aid}">${ic('back','currentColor')} ${esc(a.short)}</a>
       <div class="r-tools">
-        <button class="rtb ${saved?'saved':''}" id="saveBtn" aria-pressed="${saved}" aria-label="Save section">${ic('heart','currentColor')}<span>${saved?'Saved':'Save'}</span></button>
-        <button class="rtb" id="copyBtn" aria-label="Copy verbatim text">${ic('copy','currentColor')}<span>Copy</span></button>
-        <button class="rtb ${marksOn?'on':''}" id="markBtn" aria-pressed="${marksOn}" aria-label="Toggle defined-term highlights">${ic('book','currentColor')}<span>Terms</span></button>
+        <button class="rtb ${saved?'saved':''}" id="saveBtn" aria-pressed="${saved}" aria-label="Save section" title="Save section">${ic('heart','currentColor')}<span>${saved?'Saved':'Save'}</span></button>
+        <button class="rtb" id="copyBtn" aria-label="Copy verbatim text" title="Copy verbatim text">${ic('copy','currentColor')}<span>Copy</span></button>
+        <button class="rtb ${marksOn?'on':''}" id="markBtn" aria-pressed="${marksOn}" aria-label="Toggle defined-term highlights" title="Toggle defined-term highlights">${ic('book','currentColor')}<span>Terms</span></button>
       </div>
     </div>
     <div class="r-card fade"><div class="r-strip" style="--h:${a.hue};--hi:${a.ink}"></div>
@@ -361,9 +361,13 @@ function hl(text,q){text=text==null?'':String(text);if(!q)return esc(text);const
 function snippet(e,q){let body=(actCache[e.a]&&actCache[e.a]._byId[e.id]&&actCache[e.a]._byId[e.id].b)||(FTEXT&&FTEXT[e.a+'|'+e.id])||'';const low=body.toLowerCase();const i=low.indexOf(q);if(i<0)return '';const s=Math.max(0,i-46),en=Math.min(body.length,i+q.length+78);return (s>0?'… ':'')+esc(body.slice(s,i))+'<mark>'+esc(body.slice(i,i+q.length))+'</mark>'+esc(body.slice(i+q.length,en))+(en<body.length?' …':'');}
 function renderSearch(q){
   $('#main').innerHTML=`<h1 class="h-title fade" style="margin-bottom:8px">Search</h1>
-    <div class="sfield fade" style="height:54px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="sin" aria-label="Search legislation" placeholder="Section number, words, or a term…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" style="flex:1;border:0;outline:0;background:none;font-size:15.5px;color:var(--ink);font-family:inherit"></div>
+    <div class="sfield fade" style="height:54px"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="sin" aria-label="Search legislation" placeholder="Section number, words, or a term…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" style="flex:1;border:0;outline:0;background:none;font-size:15.5px;color:var(--ink);font-family:inherit"><button id="sclear" class="sclear" aria-label="Clear search" title="Clear" hidden>✕</button></div>
     <div class="s-res" id="sres"></div>`;
-  const i=$('#sin'); i.value=q||''; i.addEventListener('input',()=>{clearTimeout(searchT);searchT=setTimeout(()=>runSearch(i.value),110)});
+  const i=$('#sin'); i.value=q||'';
+  const clr=$('#sclear'); const toggleClr=()=>{if(clr)clr.hidden=!i.value;}; toggleClr();
+  i.addEventListener('input',()=>{toggleClr();clearTimeout(searchT);searchT=setTimeout(()=>runSearch(i.value),110)});
+  i.addEventListener('keydown',e=>{if(e.key==='Enter'){const first=$('#sres a.s-item'); if(first){e.preventDefault();const v=i.value.trim(); if(v.length>=2)pushSearch(v); navigate(first.getAttribute('href').slice(1));}}});
+  if(clr)clr.onclick=()=>{i.value='';toggleClr();runSearch('');i.focus();};
   $('#sres').addEventListener('click',e=>{
     const x=e.target.closest('.s-x'); if(x){e.preventDefault();e.stopPropagation();ls.set('searches',(ls.get('searches',[])||[]).filter(v=>v!==x.dataset.q));runSearch(i.value);return;}
     const c=e.target.closest('.s-clear'); if(c){e.preventDefault();ls.set('searches',[]);runSearch(i.value);return;}
@@ -402,12 +406,12 @@ function runSearch(q){
 }
 
 /* ---------- STUDY / SAVED / RECENTS / DEFS / DRUGS ---------- */
-function studyTiles(full){return [['Recall drill',full?'108 scaffold cards · weakest-first':'108 cards','activity','#797efe','toast'],['Section quiz',full?'name the section':'name it','alert','#fc8f66','toast'],['Scenarios',full?'37 worked examples':'37 worked','file','#3dcfae','scen'],['Drug matrix','MDA quantities','droplet','#fec846','/drugs']]
-  .map(([n,d,i,h,a])=>`<a class="tile" ${a==='/drugs'?`href="#/drugs"`:`data-act="${a}"`} style="background:${tileBg(h)};--tsh:color-mix(in srgb,${h} 55%,transparent)"><span class="chip">${ic(i)}</span><span class="lb">${n}<small>${d}</small></span></a>`).join('')}
+function studyTiles(full){return [['Recall drill',full?'108 scaffold cards · weakest-first':'108 cards','activity','#797efe','soon'],['Section quiz',full?'name the section':'name it','alert','#fc8f66','soon'],['Scenarios',full?'37 worked examples':'37 worked','file','#3dcfae','scen'],['Drug matrix','MDA quantities','droplet','#fec846','/drugs']]
+  .map(([n,d,i,h,a])=>`<a class="tile${a==='soon'?' tile-soon':''}" ${a==='/drugs'?`href="#/drugs"`:`data-act="${a}"`} style="background:${tileBg(h)};--tsh:color-mix(in srgb,${h} 55%,transparent)">${a==='soon'?`<span class="soon">Soon</span>`:''}<span class="chip">${ic(i)}</span><span class="lb">${n}<small>${d}</small></span></a>`).join('')}
 function renderStudy(){
   $('#main').innerHTML=`<h1 class="h-title fade">Study</h1><div class="tilegrid fade">${studyTiles(true)}</div>
-   <p style="color:var(--ink-4);font-size:13px;margin-top:20px">Every drill string is assembled from verbatim source — no invented law. Drill and quiz modes land in a later slice.</p>`;
-  $$('#main .tile[data-act]').forEach(t=>t.onclick=()=>{t.dataset.act==='scen'?renderScenarios():toast('Drill mode lands in a later slice')});
+   <p style="color:var(--ink-4);font-size:13px;margin-top:20px">Recall drill and Section quiz are coming soon. You can already drill any section from its <strong>Memorise</strong> card. Every string is built from verbatim source — no invented law.</p>`;
+  $$('#main .tile[data-act]').forEach(t=>t.onclick=()=>{t.dataset.act==='scen'?renderScenarios():toast('Coming soon — drill any section now from its Memorise card')});
 }
 function renderScenarios(){
   loadStudy().then(()=>{const sc=STUDY.scen;const keys=Object.keys(sc);
@@ -417,12 +421,14 @@ function renderScenarios(){
 }
 function renderSaved(){
   const sv=ls.get('saved',[])||[];
-  const body=sv.length?sv.map(x=>`<a class="arow" href="#/s/${x.a}/${x.id}"><span class="badge" style="background:${tileBg(hue(x.a))};--tsh:${tsh(x.a)}">${esc(x.num)}</span><div><div class="nm">${esc(x.t)}</div><div class="me">${esc(SRC[x.a].abbr)} · ${esc(x.disp)}</div></div><span class="ch">${ic('chev','currentColor')}</span></a>`).join(''):`<p class="empty">No saved sections yet. Tap ♥ Save in any provision.</p>`;
-  $('#main').innerHTML=`<h1 class="h-title fade">Saved</h1><div class="fade">${body}</div>`;
+  if(!sv.length){$('#main').innerHTML=`<h1 class="h-title fade">Saved</h1><div class="empty fade"><p>No saved sections yet. Tap ♥ Save in any provision and it’ll wait here.</p><div class="empty-cta"><a class="ecta" href="#/browse">Browse the Acts</a><a class="ecta ghost" href="#/search">Search</a></div></div>`;return;}
+  const body=sv.map(x=>`<div class="row-wrap"><a class="arow" href="#/s/${x.a}/${x.id}"><span class="badge" style="background:${tileBg(hue(x.a))};--tsh:${tsh(x.a)}">${esc(x.num)}</span><div><div class="nm">${esc(x.t)}</div><div class="me">${esc(SRC[x.a].abbr)} · ${esc(x.disp)}</div></div></a><button class="row-x" data-a="${x.a}" data-id="${x.id}" aria-label="Remove from saved">✕</button></div>`).join('');
+  $('#main').innerHTML=`<h1 class="h-title fade">Saved</h1><div class="fade" id="savedList">${body}</div>`;
+  const list=$('#savedList'); if(list)list.addEventListener('click',e=>{const x=e.target.closest('.row-x'); if(x){e.preventDefault();const sv2=(ls.get('saved',[])||[]).filter(i=>!(i.a===x.dataset.a&&i.id===x.dataset.id));ls.set('saved',sv2);toast('Removed');renderSaved();}});
 }
 function renderRecents(){
   const r=ls.get('recents',[])||[];
-  const body=r.length?r.map(x=>`<a class="arow" href="#/s/${x.a}/${x.id}"><span class="badge" style="background:${tileBg(hue(x.a))};--tsh:${tsh(x.a)}">${esc(x.num)}</span><div><div class="nm">${esc(x.t)}</div><div class="me">${esc(SRC[x.a].abbr)} · ${esc(x.disp)}</div></div><span class="ch">${ic('chev','currentColor')}</span></a>`).join(''):`<p class="empty">No recents yet — open a section and it’ll show here.</p>`;
+  const body=r.length?r.map(x=>`<a class="arow" href="#/s/${x.a}/${x.id}"><span class="badge" style="background:${tileBg(hue(x.a))};--tsh:${tsh(x.a)}">${esc(x.num)}</span><div><div class="nm">${esc(x.t)}</div><div class="me">${esc(SRC[x.a].abbr)} · ${esc(x.disp)}</div></div><span class="ch">${ic('chev','currentColor')}</span></a>`).join(''):`<div class="empty"><p>No recents yet — open a section and it’ll show here.</p><div class="empty-cta"><a class="ecta" href="#/browse">Browse the Acts</a><a class="ecta ghost" href="#/search">Search</a></div></div>`;
   $('#main').innerHTML=`<h1 class="h-title fade">Recent</h1><div class="fade">${body}</div>`;
 }
 function renderDefs(){
@@ -574,7 +580,7 @@ function closeDrawer(){const s=$('#sidebar'); if(s){s.classList.remove('open'); 
   const sc=$('#sbScrim'); if(sc)sc.classList.remove('on'); document.body.classList.remove('drawer-open');
   document.removeEventListener('keydown',trapTab); const mb=$('#menuBtn'); if(mb)mb.setAttribute('aria-expanded','false');
   if(_drawerOpen&&_lastFocus&&_lastFocus.focus){try{_lastFocus.focus()}catch(e){}} _drawerOpen=false; }
-function paintThemeBtn(){const dark=document.documentElement.dataset.theme==='dark';const b=$('#themeBtn');if(b){b.innerHTML=ic(dark?'sun':'moon','currentColor');b.setAttribute('aria-label',dark?'Switch to light theme':'Switch to dark theme');b.setAttribute('aria-pressed',String(dark));}}
+function paintThemeBtn(){const dark=document.documentElement.dataset.theme==='dark';const b=$('#themeBtn');if(b){b.innerHTML=ic(dark?'sun':'moon','currentColor');const lab=dark?'Switch to light theme':'Switch to dark theme';b.setAttribute('aria-label',lab);b.title=lab;b.setAttribute('aria-pressed',String(dark));}}
 function toggleTheme(){const r=document.documentElement;r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';ls.set('theme',r.dataset.theme);paintThemeBtn()}
 function applySize(){const z=ls.get('size',1);document.documentElement.style.setProperty('--rsz',z);$$('.page')&&($('#main').style.fontSize=z+'em')}
 function cycleSize(){let z=ls.get('size',1);z=z>=1.18?.9:Math.round((z+.08)*100)/100;ls.set('size',z);$('#main').style.fontSize=z+'em';toast('Text size '+Math.round(z*100)+'%')}

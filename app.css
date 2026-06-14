@@ -214,7 +214,7 @@ svg{display:block}
 .s-item{display:flex;align-items:center;gap:13px;padding:12px 15px;border-radius:15px;background:var(--card);border:1px solid var(--line);box-shadow:var(--sh-sm)}
 .s-item:active{transform:scale(.99)}
 .s-item .sn{font-family:var(--mono);font-size:11.5px;color:#fff;padding:4px 8px;border-radius:8px;flex:none}
-.s-item .stx{font-size:14px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-item .stx{font-size:14px;font-weight:600;min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .s-item .smeta{margin-left:auto;font-size:11px;color:var(--ink-4);font-family:var(--mono)}
 .s-grp{font-size:11px;font-weight:750;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-4);margin:16px 4px 2px}
 .empty{padding:40px 10px;text-align:center;color:var(--ink-4);font-size:14px}
@@ -512,3 +512,30 @@ button,a{-webkit-tap-highlight-color:transparent}
 @media (hover:none){ .kbd,.sb-srch .k{display:none} }
 /* eyebrow / section labels — one consistent small-caps scale */
 .cite-h,.s-grp,.tp-ch,.sb-chh,.sb-grp{font-weight:700;letter-spacing:.055em}
+
+/* ===================================================================
+   R5 UI & EASE-OF-USE — soon badges, empty-state CTAs, search clear,
+   removable saved rows, sticky + zebra drug matrix.
+   =================================================================== */
+.tile-soon{opacity:.66}
+.tile .soon{position:absolute;top:10px;right:10px;z-index:2;font-size:9.5px;font-weight:750;letter-spacing:.05em;text-transform:uppercase;color:#fff;background:rgba(18,20,40,.36);border:1px solid rgba(255,255,255,.5);padding:2px 8px;border-radius:999px;text-shadow:none}
+/* actionable empty states */
+.empty-cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.ecta{height:42px;display:inline-flex;align-items:center;padding:0 18px;border-radius:13px;font-size:14px;font-weight:650;background:var(--hi);color:#fff;box-shadow:var(--sh-sm)}
+.ecta.ghost{background:var(--card);color:var(--ink-2);border:1px solid var(--line)}
+[data-theme="dark"] .ecta{background:color-mix(in srgb,var(--h) 70%,#fff);color:#0c0d12}
+[data-theme="dark"] .ecta.ghost{background:var(--card);color:var(--ink-2)}
+@media(hover:hover){.ecta:hover{filter:brightness(1.06)}}
+/* search clear */
+.sclear{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:var(--ink-4);font-size:13px}
+@media(hover:hover){.sclear:hover{background:var(--paper);color:var(--ink-2)}}
+.sclear:active{transform:scale(.92)}
+/* removable saved rows */
+.row-wrap{display:flex;align-items:stretch;gap:7px;margin-bottom:9px}
+.row-wrap .arow{flex:1;margin-bottom:0}
+.row-x{flex:none;width:42px;border-radius:14px;color:var(--ink-4);font-size:13px;background:var(--card);border:1px solid var(--line);box-shadow:var(--sh-sm)}
+@media(hover:hover){.row-x:hover{background:var(--paper);color:var(--ink-2)}}
+.row-x:active{transform:scale(.95)}
+/* drug matrix — sticky drug-name column + zebra rows for cross-reading */
+.matwrap td:first-child,.matwrap th:first-child{position:sticky;left:0;z-index:1;background:var(--card);text-align:left;box-shadow:1px 0 0 0 var(--line)}
+.matwrap tr:nth-child(2n) td{background:color-mix(in srgb,var(--ink-3) 8%,var(--card))}
