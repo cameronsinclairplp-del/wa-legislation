@@ -1,6 +1,6 @@
 /* WA Legislation — service worker. Precaches the shell + full corpus for true
    offline; self-updating (old caches purged on activate). VER is stamped by build.py. */
-const VER = 'wal-8aa946cc08';
+const VER = 'wal-5269dec177';
 const SHELL = ['./','./index.html','./app.css','./app.js','./manifest.webmanifest',
   './icons/icon-192.png','./icons/icon-512.png','./icons/icon-180.png','./icons/icon-maskable-512.png'];
 const SHARED = ['registry.json','search.json','defs.json','topics.json','study.json','ftext.json','scaffolds.json','offences.json'];

@@ -4,7 +4,7 @@
    candy; the READER stays calm (near-white, dark ink, hue accent) for verbatim law. */
 :root{
   --paper:#eef2f8; --card:#ffffff; --line:#e7e9f0; --line-2:#eef0f6;
-  --ink:#191a22; --ink-2:#4d4f5c; --ink-3:#838799; --ink-4:#aab0c2;
+  --ink:#191a22; --ink-2:#4d4f5c; --ink-3:#5f6577; --ink-4:#666c7f;
   --h:#5dbfff; --hi:#0b6fb8;
   --radius:16px; --radius-lg:22px; --radius-xl:26px; --dock-h:64px;
   --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
@@ -15,7 +15,7 @@
 }
 [data-theme="dark"]{
   --paper:#0c0d12; --card:#16181f; --line:#262a36; --line-2:#1d2029;
-  --ink:#f4f5fa; --ink-2:#c7cad6; --ink-3:#8c91a3; --ink-4:#5a5f70;
+  --ink:#f4f5fa; --ink-2:#c7cad6; --ink-3:#9398aa; --ink-4:#868ca0;
   --sh-sm:none; --sh:0 8px 22px rgba(0,0,0,.5); --sh-lg:0 30px 70px rgba(0,0,0,.62);
 }
 *{box-sizing:border-box}html,body{margin:0;padding:0}
@@ -136,14 +136,14 @@ svg{display:block}
   box-shadow:0 14px 30px -12px var(--tsh,rgba(40,44,70,.4)),0 4px 10px -4px rgba(30,30,50,.12);
   transition:transform .16s cubic-bezier(.2,.7,.3,1),box-shadow .16s}
 .tile::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 30% 8%,rgba(255,255,255,.32),transparent 60%);z-index:-1}
-.tile:hover{transform:translateY(-4px);box-shadow:0 24px 46px -14px var(--tsh,rgba(40,44,70,.5)),0 8px 16px -6px rgba(30,30,50,.16)}
+/* .tile hover-lift lives in the @media(hover:hover) block near the end (avoids sticky-hover on touch) */
 .tile:active{transform:translateY(-1px) scale(.985)}
 .tile .chip{width:50px;height:50px;border-radius:16px;display:grid;place-items:center;
   background:rgba(255,255,255,.22);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3),0 4px 10px -3px rgba(20,20,40,.18)}
 .tile .chip svg{width:27px;height:27px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tile .chip .mono{font-family:var(--mono);font-weight:740;font-size:15px;color:#fff;letter-spacing:-.02em;text-shadow:0 1px 2px rgba(20,20,40,.25)}
 .tile .lb{font-weight:680;font-size:13.5px;letter-spacing:-.01em;line-height:1.2;text-shadow:0 1px 2px rgba(20,20,40,.22)}
-.tile .lb small{display:block;font-weight:500;font-size:11px;opacity:.85;margin-top:3px;text-shadow:none}
+.tile .lb small{display:block;font-weight:500;font-size:11px;opacity:.92;margin-top:3px;text-shadow:0 1px 2px rgba(20,20,40,.28)}
 
 /* continue hero (vivid, wide) */
 .cont{grid-column:1/-1;display:flex;align-items:center;gap:18px;border-radius:var(--radius-lg);padding:20px 22px;color:#fff;position:relative;overflow:hidden;
@@ -307,7 +307,7 @@ button,a{-webkit-tap-highlight-color:transparent}
 .pgbtn.next{text-align:right;align-items:flex-end}
 .pgbtn .dir{font-size:11.5px;font-weight:650;color:var(--hi)}
 .pgbtn .pnm{font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-:focus-visible{outline:2px solid var(--h);outline-offset:2px;border-radius:8px}
+:focus-visible{outline:2px solid var(--hi);outline-offset:2px;border-radius:8px}
 .arow,.tile,.cont,.chip2,.s-item,.di,.pgbtn{-webkit-user-select:none;user-select:none}
 .statute,.statute *{-webkit-user-select:text;user-select:text}
 
@@ -352,7 +352,7 @@ button,a{-webkit-tap-highlight-color:transparent}
 
 /* ===== Terms A–Z jump + life ===== */
 .sb-az{position:sticky;top:0;z-index:3;display:flex;flex-wrap:wrap;gap:1px;padding:6px 2px 8px;background:var(--card);margin:0 0 2px;border-bottom:1px solid var(--line-2)}
-.azl{font-size:10.5px;font-weight:700;color:var(--ink-3);min-width:18px;height:18px;border-radius:5px;display:grid;place-items:center;padding:0}
+.azl{font-size:11px;font-weight:700;color:var(--ink-3);min-width:24px;height:24px;border-radius:6px;display:grid;place-items:center;padding:0}
 .azl:hover,.azl:active{background:color-mix(in srgb,var(--h) 16%,var(--card));color:var(--hi)}
 .sb-letter{scroll-margin-top:38px}
 
@@ -416,7 +416,7 @@ button,a{-webkit-tap-highlight-color:transparent}
 
 /* section rows + topic / offence rows */
 .sb-secs{margin:1px 0 4px;padding-left:6px;border-left:1px solid var(--line-2)}
-.sb-sec{display:flex;gap:8px;align-items:baseline;width:100%;text-align:left;padding:5px 8px;border-radius:7px;color:var(--ink-3);font-size:12.5px;line-height:1.32;font-weight:500;text-transform:none;letter-spacing:normal}
+.sb-sec{display:flex;gap:8px;align-items:baseline;width:100%;text-align:left;padding:7px 8px;border-radius:7px;color:var(--ink-3);font-size:12.5px;line-height:1.32;font-weight:500;text-transform:none;letter-spacing:normal}
 .sb-sec:hover{background:var(--paper);color:var(--ink)}
 .sb-sec.cur{color:var(--hi);background:color-mix(in srgb,var(--h) 12%,transparent);font-weight:600}
 .sb-sec .n{font-family:var(--mono);font-size:10.5px;color:var(--ink-4);flex:none;min-width:1.6em}.sb-sec.cur .n{color:var(--hi)}
@@ -434,3 +434,81 @@ button,a{-webkit-tap-highlight-color:transparent}
 
 /* offences page subtitle */
 .sub-note{color:var(--ink-3);font-size:13.5px;line-height:1.5;margin:-6px 0 8px;max-width:60ch}
+
+/* ===================================================================
+   R1 INTERACTION — hover gated to pointer devices, press feedback,
+   saved-state heart. Hover effects only fire where a real pointer
+   exists, so taps on touch don't leave a stuck "hover" state.
+   =================================================================== */
+@media (hover:hover){
+  .tile:hover{transform:translateY(-4px);box-shadow:0 24px 46px -14px var(--tsh,rgba(40,44,70,.5)),0 8px 16px -6px rgba(30,30,50,.16)}
+  .cont:hover{transform:translateY(-3px)}
+  .arow:hover{border-color:color-mix(in srgb,var(--h) 32%,var(--line));box-shadow:var(--sh)}
+  .s-item:hover{border-color:color-mix(in srgb,var(--h) 30%,var(--line))}
+  .chip2:hover{border-color:color-mix(in srgb,var(--h) 36%,var(--line));background:color-mix(in srgb,var(--h) 6%,var(--card))}
+  .s-rchip:hover{border-color:color-mix(in srgb,var(--h) 36%,var(--line));color:var(--ink)}
+  .pgbtn:hover{border-color:color-mix(in srgb,var(--h) 32%,var(--line));box-shadow:var(--sh)}
+  .rtb:hover{color:var(--ink);border-color:color-mix(in srgb,var(--h) 26%,var(--line))}
+  .rbtn:hover{color:var(--ink)}
+  .r-back:hover{color:var(--ink)}
+  .mbtn:hover{color:var(--ink);border-color:color-mix(in srgb,var(--h) 26%,var(--line))}
+  .seg a:hover:not(.on),.seg button:hover:not(.on){color:var(--ink-2)}
+  .sb-switch button:hover:not(.on),.sb-sub2 button:hover:not(.on){color:var(--ink-2)}
+  .row-h .more:hover{text-decoration:underline}
+}
+/* press feedback (all devices) */
+.cont:active{transform:translateY(-1px) scale(.99)}
+.sb-acc:active,.sb-part:active,.sb-sec:active,.sb-link:active,.sb-topic2:active,.sb-term:active{background:color-mix(in srgb,var(--h) 16%,transparent)}
+.rtb:active,.mbtn:active{transform:scale(.95)}
+/* reader Save — filled accent heart when the section is saved */
+.rtb.saved{color:var(--hi);background:color-mix(in srgb,var(--h) 12%,var(--card));border-color:color-mix(in srgb,var(--h) 30%,transparent)}
+.rtb.saved svg{fill:var(--hi);stroke:var(--hi)}
+
+/* ===================================================================
+   R2 ACCESSIBILITY — dark-theme accent parity + narrow-width hardening.
+   On dark surfaces the per-Act "ink" (--hi) is too dark for AA text;
+   derive accent text by lightening the vivid hue toward white instead.
+   =================================================================== */
+[data-theme="dark"] .sb-acc.cur,
+[data-theme="dark"] .sb-acc.cur .cv,
+[data-theme="dark"] .sb-acc.open .cv,
+[data-theme="dark"] .sb-sec.cur,
+[data-theme="dark"] .sb-sec.cur .n,
+[data-theme="dark"] .r-head .act,
+[data-theme="dark"] .r-band .act,
+[data-theme="dark"] .altbox .lbl,
+[data-theme="dark"] .xref,
+[data-theme="dark"] .more,
+[data-theme="dark"] .row-h .more,
+[data-theme="dark"] .seg a.on,
+[data-theme="dark"] .seg button.on,
+[data-theme="dark"] .sb-switch button.on,
+[data-theme="dark"] .sb-sub2 button.on,
+[data-theme="dark"] .di.on,
+[data-theme="dark"] .pgbtn .dir,
+[data-theme="dark"] .s-clear,
+[data-theme="dark"] .rtb.on,
+[data-theme="dark"] .rtb.saved,
+[data-theme="dark"] .statute .mk,
+[data-theme="dark"] .mitem .mk,
+[data-theme="dark"] .memo-badge,
+[data-theme="dark"] .memo-hook{ color:color-mix(in srgb, var(--h) 70%, #fff); }
+[data-theme="dark"] .memo-badge svg,[data-theme="dark"] .memo-hook svg{ stroke:color-mix(in srgb, var(--h) 70%, #fff); }
+[data-theme="dark"] .rtb.saved svg{ fill:color-mix(in srgb, var(--h) 70%, #fff); stroke:color-mix(in srgb, var(--h) 70%, #fff); }
+
+/* narrow-width appbar: the bottom dock already carries Search, so the
+   redundant appbar magnifier is dropped on phones; tighten at <=360px. */
+@media(max-width:560px){ #searchBtn{display:none} }
+@media(max-width:360px){ .appbar{padding-left:12px;padding-right:12px;gap:8px} }
+
+/* ===================================================================
+   R3 COLOUR / READABILITY — crisp focus on dark, legible selection,
+   touch-aware shortcut hints, unified eyebrow labels.
+   =================================================================== */
+[data-theme="dark"] :focus-visible{outline-color:color-mix(in srgb,var(--h) 70%,#fff)}
+::selection{background:color-mix(in srgb,var(--h) 26%,#fff)}
+[data-theme="dark"] ::selection{background:color-mix(in srgb,var(--h) 42%,#000);color:#fff}
+/* the ⌘K shortcut hint is meaningless on touch devices */
+@media (hover:none){ .kbd,.sb-srch .k{display:none} }
+/* eyebrow / section labels — one consistent small-caps scale */
+.cite-h,.s-grp,.tp-ch,.sb-chh,.sb-grp{font-weight:700;letter-spacing:.055em}
