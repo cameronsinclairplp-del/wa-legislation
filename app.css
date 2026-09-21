@@ -257,7 +257,8 @@ button,a{-webkit-tap-highlight-color:transparent}
 .kbd{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-4)}
 
 /* ===== polish pass: search highlight + snippets, recents, pager, focus ===== */
-.s-item .stx mark,.snip mark{background:color-mix(in srgb,var(--h) 26%,transparent);color:inherit;border-radius:3px;padding:0 1.5px;font-weight:650}
+/* no padding on marks: a hit inside a word ("fire" in "fires") must not look like a space was added to the law. The bleed is a shadow, which takes no room. */
+.s-item .stx mark,.snip mark{background:color-mix(in srgb,var(--h) 26%,transparent);color:inherit;border-radius:3px;padding:0;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--h) 26%,transparent);font-weight:650}
 .s-item.ft{align-items:flex-start}
 .ftcol{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
 .snip{font-size:12.5px;color:var(--ink-3);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -691,7 +692,7 @@ a.xref[data-a]{border-bottom-style:dotted}
 .scopes button{flex:none;font-family:var(--mono);font-size:11.5px;font-weight:700;padding:6px 10px;border-radius:9px;color:color-mix(in srgb,var(--hi) 78%,#000);background:color-mix(in srgb,var(--h) 12%,var(--card));border:1px solid color-mix(in srgb,var(--h) 26%,transparent)}
 [data-theme="dark"] .scopes button{color:color-mix(in srgb,var(--h) 72%,#fff)}
 .scopes button:active{transform:scale(.95)}
-mark.hit{background:#ffe58a;color:#191a22;border-radius:3px;padding:0 1px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+mark.hit{background:#ffe58a;color:#191a22;border-radius:3px;padding:0;box-shadow:0 0 0 1px #ffe58a;box-decoration-break:clone;-webkit-box-decoration-break:clone}
 mark.hit.cur{background:#ff9f43;box-shadow:0 0 0 2px #ff9f43}
 .hitnav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--dock-h) + 30px + env(safe-area-inset-bottom));z-index:40;display:flex;align-items:center;gap:4px;
   padding:6px 6px 6px 14px;border-radius:16px;background:var(--ink);color:var(--paper);box-shadow:var(--sh-lg);font-size:13px;max-width:calc(100vw - 24px)}

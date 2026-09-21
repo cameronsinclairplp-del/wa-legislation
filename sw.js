@@ -7,7 +7,7 @@
    - Install is all-or-nothing and every data file is checked against its hash before it is kept, so a half-deployed
      site (CDN still serving an old file) can never be mistaken for the new law. If install fails, the old version keeps serving.
    - A new version waits until the page says SKIP_WAITING (the app asks the user, or switches by itself at start-up). */
-const VER = 'wal-8d716f7ed2';
+const VER = 'wal-65871c081d';
 const DATA_CACHE = 'wal-data';
 const SHELL = ['./', './index.html', './app.css', './app.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-180.png', './icons/icon-maskable-512.png'];
